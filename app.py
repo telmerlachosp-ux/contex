@@ -1,6 +1,11 @@
 import streamlit as st
 import fitz
 
+from motor_reglas import (
+    determinar_igv,
+    verificar_bancarizacion,
+    validar_asiento
+)
 
 st.set_page_config(
     page_title="CONTEX",
@@ -70,3 +75,102 @@ if archivo is not None:
             st.error(
                 f"No se pudo leer el documento: {error}"
             )
+st.divider()
+
+st.subheader("🧪 Prueba del motor de CONTEX")
+
+if st.button("PROBAR MOTOR"):
+
+    resultado_igv = determinar_igv(
+        tratamiento_igv="GRAVADA",
+        base_imponible=10000
+    )
+
+    resultado_bancarizacion = verificar_bancarizacion(
+        monto_pago=5000,
+        medio_pago=None
+    )
+
+    cuentas = [
+        {
+            "codigo": "6011",
+            "cuenta": "Mercaderías",
+            "debe": 10000,
+            "haber": 0
+        },
+        {
+            "codigo": "40111",
+            "cuenta": "IGV",
+            "debe": 1800,
+            "haber": 0
+        },
+        {
+            "codigo": "4212",
+            "cuenta": "Facturas por pagar",
+            "debe": 0,
+            "haber": 11800
+        }
+    ]
+
+    resultado_validacion = validar_asiento(cuentas)
+
+    st.write("### Resultado del IGV")
+
+    st.write(
+        "Base imponible:",
+        resultado_igv["base_imponible"]
+    )
+
+    st.write(
+        "IGV:",
+        resultado_igv["igv"]
+    )
+
+    st.write(
+        "Total:",
+        resultado_igv["total"]
+    )
+
+    st.write("### Resultado de bancarización")
+
+    st.write(
+        "¿Obligatoria?:",
+        resultado_bancarizacion[
+            "bancarizacion_obligatoria"
+        ]
+    )
+
+    st.write(
+        "Medio de pago:",
+        resultado_bancarizacion[
+            "medio_pago"
+        ]
+    )
+
+    st.warning(
+        resultado_bancarizacion[
+            "observacion"
+        ]
+    )
+
+    st.write("### Validación del asiento")
+
+    st.write(
+        "Debe:",
+        resultado_validacion["debe"]
+    )
+
+    st.write(
+        "Haber:",
+        resultado_validacion["haber"]
+    )
+
+    st.write(
+        "Diferencia:",
+        resultado_validacion["diferencia"]
+    )
+
+    if resultado_validacion["cuadrado"]:
+        st.success("✅ El asiento está cuadrado.")
+    else:
+        st.error("❌ El asiento NO está cuadrado.")
