@@ -1,5 +1,6 @@
 import streamlit as st
 import fitz
+from google import genai
 
 from motor_reglas import (
     determinar_igv,
@@ -169,7 +170,37 @@ if st.button("PROBAR MOTOR"):
         "Diferencia:",
         resultado_validacion["diferencia"]
     )
+st.divider()
 
+st.subheader("🤖 Prueba de conexión con Gemini")
+
+if st.button("PROBAR GEMINI"):
+
+    try:
+
+        api_key = st.secrets["GEMINI_API_KEY"]
+
+        cliente = genai.Client(
+            api_key=api_key
+        )
+
+        respuesta = cliente.models.generate_content(
+            model="gemini-2.5-flash",
+            contents="Responde únicamente: CONEXIÓN CORRECTA"
+        )
+
+        st.success("Gemini está conectado correctamente.")
+
+        st.write("Respuesta de Gemini:")
+
+        st.write(respuesta.text)
+
+    except Exception as error:
+
+        st.error(
+            f"No se pudo conectar con Gemini: {error}"
+        )
+        
     if resultado_validacion["cuadrado"]:
         st.success("✅ El asiento está cuadrado.")
     else:
