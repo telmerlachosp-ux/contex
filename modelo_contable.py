@@ -47,3 +47,20 @@ class OperacionContable:
     # CUENTAS CONTABLES
     # =========================
     cuentas: List[dict] = field(default_factory=list)
+    def crear_asiento(cuentas):
+    """
+    Crea y valida un asiento contable.
+    """
+
+    debe = sum(cuenta["debe"] for cuenta in cuentas)
+    haber = sum(cuenta["haber"] for cuenta in cuentas)
+
+    diferencia = round(debe - haber, 2)
+
+    return {
+        "cuentas": cuentas,
+        "debe": debe,
+        "haber": haber,
+        "diferencia": diferencia,
+        "cuadrado": diferencia == 0
+    }
