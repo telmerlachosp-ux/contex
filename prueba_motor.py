@@ -1,94 +1,66 @@
-from motor_reglas import (
-    determinar_igv,
-    verificar_bancarizacion,
-    validar_asiento
+from motor_reglas import generar_asiento_compra
+
+
+# ==========================================
+# PRUEBA DE COMPRA AL CRÉDITO
+# ==========================================
+
+resultado = generar_asiento_compra(
+    base_imponible=10000,
+    igv=1800,
+    total=11800,
+    condicion_pago="CREDITO"
 )
 
 
-print("====================================")
-print("      PRUEBA DEL MOTOR DE CONTEX")
-print("====================================")
+print("==========================================")
+print("PRUEBA DE GENERADOR DE COMPRA")
+print("==========================================")
+
+print()
+
+print("ASIENTO CONTABLE")
+
+print()
+
+for cuenta in resultado["cuentas"]:
+
+    print(
+        cuenta["codigo"],
+        "-",
+        cuenta["cuenta"]
+    )
+
+    print(
+        "Debe:",
+        cuenta["debe"],
+        "| Haber:",
+        cuenta["haber"]
+    )
+
+    print()
 
 
-# ------------------------------------
-# 1. PRUEBA DEL IGV
-# ------------------------------------
+print("==========================================")
+print("VALIDACIÓN")
+print("==========================================")
 
-print("\n1. PRUEBA DEL IGV")
-
-resultado_igv = determinar_igv(
-    tratamiento_igv="GRAVADA",
-    base_imponible=10000
-)
-
-print("Base:", resultado_igv["base_imponible"])
-print("IGV:", resultado_igv["igv"])
-print("Total:", resultado_igv["total"])
-
-
-# ------------------------------------
-# 2. PRUEBA DE BANCARIZACIÓN
-# ------------------------------------
-
-print("\n2. PRUEBA DE BANCARIZACIÓN")
-
-resultado_bancarizacion = verificar_bancarizacion(
-    monto_pago=5000,
-    medio_pago=None
+print(
+    "Debe:",
+    resultado["validacion"]["debe"]
 )
 
 print(
-    "Bancarización obligatoria:",
-    resultado_bancarizacion["bancarizacion_obligatoria"]
+    "Haber:",
+    resultado["validacion"]["haber"]
 )
 
 print(
-    "Medio de pago:",
-    resultado_bancarizacion["medio_pago"]
+    "Diferencia:",
+    resultado["validacion"]["diferencia"]
 )
 
 print(
-    "Observación:",
-    resultado_bancarizacion["observacion"]
+    "¿Está cuadrado?:",
+    resultado["validacion"]["cuadrado"]
 )
-
-
-# ------------------------------------
-# 3. PRUEBA DE ASIENTO
-# ------------------------------------
-
-print("\n3. PRUEBA DE VALIDACIÓN")
-
-cuentas = [
-    {
-        "codigo": "6011",
-        "cuenta": "Mercaderías",
-        "debe": 10000,
-        "haber": 0
-    },
-    {
-        "codigo": "40111",
-        "cuenta": "IGV",
-        "debe": 1800,
-        "haber": 0
-    },
-    {
-        "codigo": "4212",
-        "cuenta": "Facturas por pagar",
-        "debe": 0,
-        "haber": 11800
-    }
-]
-
-
-resultado_validacion = validar_asiento(cuentas)
-
-print("Debe:", resultado_validacion["debe"])
-print("Haber:", resultado_validacion["haber"])
-print("Diferencia:", resultado_validacion["diferencia"])
-print("¿Está cuadrado?:", resultado_validacion["cuadrado"])
-
-
-print("\n====================================")
-print("       FIN DE LA PRUEBA")
-print("====================================")
