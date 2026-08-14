@@ -1,6 +1,7 @@
 import streamlit as st
 import fitz
 from google import genai
+import json
 
 from motor_reglas import (
     determinar_igv,
@@ -41,6 +42,100 @@ archivo = st.file_uploader(
     "Selecciona tu archivo PDF",
     type=["pdf"]
 )
+# ==========================================
+# FUNCIÓN DE ANÁLISIS CONTABLE
+# ==========================================
+
+def analizar_documento_con_gemini(texto):
+
+    api_key = st.secrets["GEMINI_API_KEY"]
+
+    cliente = genai.Client(
+        api_key=api_key
+    )
+
+    instrucciones = """
+Eres CONTEX, un asistente especializado
+en contabilidad peruana para estudiantes
+de contabilidad.
+
+Analiza el documento proporcionado e identifica
+las operaciones contables que contiene.
+
+Debes identificar únicamente información que
+aparezca en el documento.
+
+No inventes datos.
+
+Para cada operación identifica:
+
+- número de operación
+- fecha
+- tipo de operación
+- descripción
+- importe
+- moneda
+- base imponible
+- tratamiento del IGV
+- importe del IGV
+- importe total
+- condición de pago
+- medio de pago
+- observaciones
+
+Los tipos de operación pueden ser:
+
+APERTURA
+COMPRA
+VENTA
+COBRO
+PAGO
+OTRA
+
+Respecto al IGV:
+
+GRAVADA
+EXONERADA
+INAFECTA
+NO ESPECIFICADA
+
+Si un dato no aparece en el documento,
+utiliza null.
+
+Devuelve exclusivamente un JSON válido
+con esta estructura:
+
+{
+    "operaciones": [
+        {
+            "numero": 1,
+            "fecha": null,
+            "tipo": "",
+            "descripcion": "",
+            "importe": null,
+            "moneda": "PEN",
+            "base_imponible": null,
+            "tratamiento_igv": "",
+            "igv": null,
+            "total": null,
+            "condicion_pago": "",
+            "medio_pago": null,
+            "observaciones": ""
+        }
+    ]
+}
+"""
+
+    contenido = instrucciones + "\n\nDOCUMENTO:\n" + texto
+
+    interaction = cliente.interactions.create(
+        model="gemini-3.5-flash-lite",
+        input=contenido
+    )
+
+    respuesta = interaction.output_text
+
+    return respuesta
 
 
 if archivo is not None:
@@ -87,6 +182,46 @@ if archivo is not None:
                     texto_completo,
                     height=500
                 )
+                                st.divider()
+
+                st.subheader(
+                    "🤖 Análisis contable con CONTEX"
+                )
+
+                if st.button(
+                    "ANALIZAR DOCUMENTO"
+                ):
+
+                    try:
+
+                        with st.spinner(
+                            "CONTEX está analizando el documento..."
+                        ):
+
+                            resultado_ia = (
+                                analizar_documento_con_gemini(
+                                    texto_completo
+                                )
+                            )
+
+                        st.success(
+                            "Documento analizado correctamente."
+                        )
+
+                        st.subheader(
+                            "Resultado del análisis"
+                        )
+
+                        st.code(
+                            resultado_ia,
+                            language="json"
+                        )
+
+                    except Exception as error:
+
+                        st.error(
+                            f"No se pudo analizar el documento: {error}"
+                        )
 
             else:
 
@@ -261,9 +396,6 @@ if st.button("PROBAR MOTOR"):
         )
 
 
-# ==========================================
-# PRUEBA DE GEMINI
-# ==========================================
 
 # ==========================================
 # PRUEBA DE GEMINI
