@@ -170,6 +170,12 @@ if st.button("PROBAR MOTOR"):
         "Diferencia:",
         resultado_validacion["diferencia"]
     )
+    
+        if resultado_validacion["cuadrado"]:
+        st.success("✅ El asiento está cuadrado.")
+    else:
+        st.error("❌ El asiento NO está cuadrado.")
+        
 st.divider()
 
 st.subheader("🤖 Prueba de conexión con Gemini")
@@ -200,8 +206,3 @@ if st.button("PROBAR GEMINI"):
         st.error(
             f"No se pudo conectar con Gemini: {error}"
         )
-        
-    if resultado_validacion["cuadrado"]:
-        st.success("✅ El asiento está cuadrado.")
-    else:
-        st.error("❌ El asiento NO está cuadrado.")
