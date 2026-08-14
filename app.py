@@ -21,11 +21,25 @@ st.set_page_config(
 
 
 # ==========================================
+# MEMORIA DE CONTEX
+# ==========================================
+
+if "texto_completo" not in st.session_state:
+    st.session_state.texto_completo = ""
+
+if "resultado_ia" not in st.session_state:
+    st.session_state.resultado_ia = ""
+
+
+# ==========================================
 # ENCABEZADO
 # ==========================================
 
 st.title("CONTEX")
-st.subheader("Asistente contable con inteligencia artificial")
+
+st.subheader(
+    "Asistente contable con inteligencia artificial"
+)
 
 st.write(
     "Sube una monografía o ejercicio contable "
@@ -34,105 +48,7 @@ st.write(
 
 
 # ==========================================
-# FUNCIÓN PARA ANALIZAR CON GEMINI
-# ==========================================
-
-def analizar_documento_con_gemini(texto):
-
-    api_key = st.secrets["GEMINI_API_KEY"]
-
-    cliente = genai.Client(
-        api_key=api_key
-    )
-
-    instrucciones = """
-Eres CONTEX, un asistente especializado
-en contabilidad peruana para estudiantes
-de contabilidad.
-
-Analiza el documento proporcionado e identifica
-las operaciones contables que contiene.
-
-Debes identificar únicamente información que
-aparezca en el documento.
-
-No inventes datos.
-
-Para cada operación identifica:
-
-- número de operación
-- fecha
-- tipo de operación
-- descripción
-- importe
-- moneda
-- base imponible
-- tratamiento del IGV
-- importe del IGV
-- importe total
-- condición de pago
-- medio de pago
-- observaciones
-
-Los tipos de operación pueden ser:
-
-APERTURA
-COMPRA
-VENTA
-COBRO
-PAGO
-OTRA
-
-Respecto al IGV:
-
-GRAVADA
-EXONERADA
-INAFECTA
-NO ESPECIFICADA
-
-Si un dato no aparece en el documento,
-utiliza null.
-
-Devuelve exclusivamente un JSON válido
-con esta estructura:
-
-{
-    "operaciones": [
-        {
-            "numero": 1,
-            "fecha": null,
-            "tipo": "",
-            "descripcion": "",
-            "importe": null,
-            "moneda": "PEN",
-            "base_imponible": null,
-            "tratamiento_igv": "",
-            "igv": null,
-            "total": null,
-            "condicion_pago": "",
-            "medio_pago": null,
-            "observaciones": ""
-        }
-    ]
-}
-"""
-
-    contenido = (
-        instrucciones
-        + "\n\nDOCUMENTO:\n"
-        + texto
-    )
-
-    interaction = cliente.interactions.create(
-        model="gemini-3.5-flash-lite",
-        input=contenido
-    )
-
-    return interaction.output_text
-
-
-# ==========================================
-# CARGA DEL PDF
+# CARGAR PDF
 # ==========================================
 
 archivo = st.file_uploader(
@@ -147,12 +63,18 @@ if archivo is not None:
         f"Archivo cargado: {archivo.name}"
     )
 
+    # ======================================
+    # LEER DOCUMENTO
+    # ======================================
+
     if st.button("LEER DOCUMENTO"):
 
         try:
 
+            archivo_bytes = archivo.getvalue()
+
             documento = fitz.open(
-                stream=archivo.read(),
+                stream=archivo_bytes,
                 filetype="pdf"
             )
 
@@ -172,81 +94,173 @@ if archivo is not None:
 
             documento.close()
 
-            if texto_completo.strip():
+            # Guardar el texto en la memoria de CONTEX
+            st.session_state.texto_completo = (
+                texto_completo
+            )
 
-                st.success(
-                    "Documento leído correctamente."
-                )
-
-                st.subheader(
-                    "Texto extraído del documento"
-                )
-
-                st.text_area(
-                    "Contenido detectado:",
-                    texto_completo,
-                    height=500
-                )
-
-                # ==========================================
-                # ANÁLISIS CON GEMINI
-                # ==========================================
-
-                st.divider()
-
-                st.subheader(
-                    "🤖 Análisis contable con CONTEX"
-                )
-
-                if st.button(
-                    "ANALIZAR DOCUMENTO"
-                ):
-
-                    try:
-
-                        with st.spinner(
-                            "CONTEX está analizando el documento..."
-                        ):
-
-                            resultado_ia = (
-                                analizar_documento_con_gemini(
-                                    texto_completo
-                                )
-                            )
-
-                        st.success(
-                            "Documento analizado correctamente."
-                        )
-
-                        st.subheader(
-                            "Resultado del análisis"
-                        )
-
-                        st.code(
-                            resultado_ia,
-                            language="json"
-                        )
-
-                    except Exception as error:
-
-                        st.error(
-                            "No se pudo analizar el documento: "
-                            + str(error)
-                        )
-
-            else:
-
-                st.warning(
-                    "CONTEX no encontró texto digital "
-                    "en este PDF. Es posible que el "
-                    "documento sea una imagen escaneada."
-                )
+            # Limpiar resultado anterior
+            st.session_state.resultado_ia = ""
 
         except Exception as error:
 
             st.error(
                 f"No se pudo leer el documento: {error}"
             )
+
+
+# ==========================================
+# MOSTRAR DOCUMENTO LEÍDO
+# ==========================================
+
+if st.session_state.texto_completo.strip():
+
+    st.success(
+        "Documento leído correctamente."
+    )
+
+    st.subheader(
+        "📄 Texto extraído del documento"
+    )
+
+    st.text_area(
+        "Contenido detectado:",
+        st.session_state.texto_completo,
+        height=500
+    )
+
+    # ======================================
+    # ANALIZAR CON GEMINI
+    # ======================================
+
+    st.divider()
+
+    st.subheader(
+        "🤖 Análisis contable con CONTEX"
+    )
+
+    if st.button("ANALIZAR DOCUMENTO"):
+
+        try:
+
+            api_key = st.secrets[
+                "GEMINI_API_KEY"
+            ]
+
+            cliente = genai.Client(
+                api_key=api_key
+            )
+
+            instrucciones = """
+Eres CONTEX, un asistente especializado
+en contabilidad peruana para estudiantes
+de contabilidad.
+
+Analiza cuidadosamente el documento.
+
+Identifica las operaciones contables
+que aparecen en el documento.
+
+NO inventes información.
+
+Para cada operación identifica:
+
+- número de operación
+- fecha
+- tipo de operación
+- descripción
+- importe
+- moneda
+- base imponible
+- tratamiento del IGV
+- IGV
+- total
+- condición de pago
+- medio de pago
+- observaciones
+
+Tipos de operación:
+
+APERTURA
+COMPRA
+VENTA
+COBRO
+PAGO
+OTRA
+
+Tratamiento del IGV:
+
+GRAVADA
+EXONERADA
+INAFECTA
+NO ESPECIFICADA
+
+Si un dato no aparece en el documento,
+indica "NO ESPECIFICADO".
+
+Ten presente las reglas de contabilidad
+peruana y las reglas previamente establecidas
+por CONTEX.
+
+Respecto a la bancarización:
+
+Si una operación requiere medio de pago
+según las reglas establecidas por CONTEX
+y el documento no especifica el medio,
+indícalo como "NO ESPECIFICADO" y señala
+la observación correspondiente.
+
+Devuelve el resultado de forma clara,
+ordenada y estructurada.
+
+DOCUMENTO:
+"""
+
+            contenido = (
+                instrucciones
+                + "\n\n"
+                + st.session_state.texto_completo
+            )
+
+            with st.spinner(
+                "CONTEX está analizando el documento..."
+            ):
+
+                interaction = cliente.interactions.create(
+                    model="gemini-3.5-flash-lite",
+                    input=contenido
+                )
+
+                resultado = interaction.output_text
+
+            st.session_state.resultado_ia = resultado
+
+            st.success(
+                "Documento analizado correctamente."
+            )
+
+        except Exception as error:
+
+            st.error(
+                f"No se pudo analizar el documento: {error}"
+            )
+
+
+# ==========================================
+# MOSTRAR RESULTADO DE GEMINI
+# ==========================================
+
+if st.session_state.resultado_ia:
+
+    st.subheader(
+        "📊 Resultado del análisis"
+    )
+
+    st.text_area(
+        "Análisis generado por CONTEX:",
+        st.session_state.resultado_ia,
+        height=600
+    )
 
 
 # ==========================================
