@@ -187,3 +187,60 @@ def validar_asiento(cuentas: list) -> dict:
         "diferencia": diferencia,
         "cuadrado": diferencia == 0
     }
+# ==========================================
+# GENERADOR DE ASIENTO DE COMPRA
+# ==========================================
+
+def generar_asiento_compra(
+    base_imponible,
+    igv,
+    total,
+    condicion_pago="CONTADO"
+):
+
+    cuentas = [
+        {
+            "codigo": "6011",
+            "cuenta": "Mercaderías",
+            "debe": base_imponible,
+            "haber": 0
+        },
+        {
+            "codigo": "40111",
+            "cuenta": "IGV - Cuenta propia",
+            "debe": igv,
+            "haber": 0
+        }
+    ]
+
+    if condicion_pago.upper() == "CREDITO":
+
+        cuentas.append(
+            {
+                "codigo": "4212",
+                "cuenta": (
+                    "Facturas, boletas y otros "
+                    "comprobantes por pagar - Emitidas"
+                ),
+                "debe": 0,
+                "haber": total
+            }
+        )
+
+    else:
+
+        cuentas.append(
+            {
+                "codigo": "1041",
+                "cuenta": "Cuentas corrientes operativas",
+                "debe": 0,
+                "haber": total
+            }
+        )
+
+    resultado = validar_asiento(cuentas)
+
+    return {
+        "cuentas": cuentas,
+        "validacion": resultado
+    }
