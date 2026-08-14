@@ -8,12 +8,21 @@ from motor_reglas import (
     validar_asiento
 )
 
+
+# ==========================================
+# CONFIGURACIÓN
+# ==========================================
+
 st.set_page_config(
     page_title="CONTEX",
     page_icon="📚",
     layout="centered"
 )
 
+
+# ==========================================
+# ENCABEZADO
+# ==========================================
 
 st.title("CONTEX")
 st.subheader("Asistente contable con inteligencia artificial")
@@ -23,6 +32,10 @@ st.write(
     "y CONTEX analizará su contenido."
 )
 
+
+# ==========================================
+# CARGA DEL PDF
+# ==========================================
 
 archivo = st.file_uploader(
     "Selecciona tu archivo PDF",
@@ -37,11 +50,18 @@ if archivo is not None:
     if st.button("LEER DOCUMENTO"):
 
         try:
-            documento = fitz.open(stream=archivo.read(), filetype="pdf")
+
+            documento = fitz.open(
+                stream=archivo.read(),
+                filetype="pdf"
+            )
 
             texto_completo = ""
 
-            for numero_pagina, pagina in enumerate(documento, start=1):
+            for numero_pagina, pagina in enumerate(
+                documento,
+                start=1
+            ):
 
                 texto_pagina = pagina.get_text()
 
@@ -54,9 +74,13 @@ if archivo is not None:
 
             if texto_completo.strip():
 
-                st.success("Documento leído correctamente.")
+                st.success(
+                    "Documento leído correctamente."
+                )
 
-                st.subheader("Texto extraído del documento")
+                st.subheader(
+                    "Texto extraído del documento"
+                )
 
                 st.text_area(
                     "Contenido detectado:",
@@ -67,8 +91,9 @@ if archivo is not None:
             else:
 
                 st.warning(
-                    "CONTEX no encontró texto digital en este PDF. "
-                    "Es posible que el documento sea una imagen escaneada."
+                    "CONTEX no encontró texto digital "
+                    "en este PDF. Es posible que el "
+                    "documento sea una imagen escaneada."
                 )
 
         except Exception as error:
@@ -76,44 +101,81 @@ if archivo is not None:
             st.error(
                 f"No se pudo leer el documento: {error}"
             )
+
+
+# ==========================================
+# PRUEBA DEL MOTOR CONTABLE
+# ==========================================
+
 st.divider()
 
 st.subheader("🧪 Prueba del motor de CONTEX")
 
+
 if st.button("PROBAR MOTOR"):
+
+    # --------------------------------------
+    # PRUEBA DEL IGV
+    # --------------------------------------
 
     resultado_igv = determinar_igv(
         tratamiento_igv="GRAVADA",
         base_imponible=10000
     )
 
+
+    # --------------------------------------
+    # PRUEBA DE BANCARIZACIÓN
+    # --------------------------------------
+
     resultado_bancarizacion = verificar_bancarizacion(
         monto_pago=5000,
         medio_pago=None
     )
 
+
+    # --------------------------------------
+    # CUENTAS DEL ASIENTO
+    # --------------------------------------
+
     cuentas = [
+
         {
             "codigo": "6011",
             "cuenta": "Mercaderías",
             "debe": 10000,
             "haber": 0
         },
+
         {
             "codigo": "40111",
             "cuenta": "IGV",
             "debe": 1800,
             "haber": 0
         },
+
         {
             "codigo": "4212",
             "cuenta": "Facturas por pagar",
             "debe": 0,
             "haber": 11800
         }
+
     ]
 
-    resultado_validacion = validar_asiento(cuentas)
+
+    # --------------------------------------
+    # VALIDACIÓN
+    # --------------------------------------
+
+    resultado_validacion = validar_asiento(
+        cuentas
+    )
+
+
+    # --------------------------------------
+    # MOSTRAR RESULTADOS DEL IGV
+    # --------------------------------------
 
     st.write("### Resultado del IGV")
 
@@ -132,7 +194,14 @@ if st.button("PROBAR MOTOR"):
         resultado_igv["total"]
     )
 
-    st.write("### Resultado de bancarización")
+
+    # --------------------------------------
+    # MOSTRAR BANCARIZACIÓN
+    # --------------------------------------
+
+    st.write(
+        "### Resultado de bancarización"
+    )
 
     st.write(
         "¿Obligatoria?:",
@@ -154,7 +223,14 @@ if st.button("PROBAR MOTOR"):
         ]
     )
 
-    st.write("### Validación del asiento")
+
+    # --------------------------------------
+    # MOSTRAR VALIDACIÓN
+    # --------------------------------------
+
+    st.write(
+        "### Validación del asiento"
+    )
 
     st.write(
         "Debe:",
@@ -170,35 +246,69 @@ if st.button("PROBAR MOTOR"):
         "Diferencia:",
         resultado_validacion["diferencia"]
     )
-        if resultado_validacion["cuadrado"]:
-        st.success("✅ El asiento está cuadrado.")
+
+
+    if resultado_validacion["cuadrado"]:
+
+        st.success(
+            "✅ El asiento está cuadrado."
+        )
+
     else:
-        st.error("❌ El asiento NO está cuadrado.")
-        
+
+        st.error(
+            "❌ El asiento NO está cuadrado."
+        )
+
+
+# ==========================================
+# PRUEBA DE GEMINI
+# ==========================================
+
 st.divider()
 
-st.subheader("🤖 Prueba de conexión con Gemini")
+st.subheader(
+    "🤖 Prueba de conexión con Gemini"
+)
+
 
 if st.button("PROBAR GEMINI"):
 
     try:
 
-        api_key = st.secrets["GEMINI_API_KEY"]
+        api_key = st.secrets[
+            "GEMINI_API_KEY"
+        ]
+
 
         cliente = genai.Client(
             api_key=api_key
         )
 
+
         respuesta = cliente.models.generate_content(
             model="gemini-2.5-flash",
-            contents="Responde únicamente: CONEXIÓN CORRECTA"
+            contents=(
+                "Responde únicamente: "
+                "CONEXIÓN CORRECTA"
+            )
         )
 
-        st.success("Gemini está conectado correctamente.")
 
-        st.write("Respuesta de Gemini:")
+        st.success(
+            "Gemini está conectado correctamente."
+        )
 
-        st.write(respuesta.text)
+
+        st.write(
+            "Respuesta de Gemini:"
+        )
+
+
+        st.write(
+            respuesta.text
+        )
+
 
     except Exception as error:
 
