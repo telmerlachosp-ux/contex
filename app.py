@@ -433,3 +433,37 @@ if st.button("PROBAR GEMINI"):
         st.error(
             f"No se pudo conectar con Gemini: {error}"
         )
+# -------------------------------------------------
+# PRUEBA DEL GENERADOR DE COMPRAS
+# -------------------------------------------------
+
+from generador_compras import generar_compra
+
+print("\n================================")
+print("PRUEBA DEL GENERADOR DE COMPRAS")
+print("================================")
+
+resultado_compra = generar_compra(
+    base_imponible=10000,
+    igv=1800,
+    total=11800,
+    condicion_pago="CREDITO"
+)
+
+print("\nASIENTO GENERADO")
+
+for cuenta in resultado_compra["cuentas"]:
+    print(
+        cuenta["codigo"],
+        "-",
+        cuenta["cuenta"],
+        "| Debe:",
+        cuenta["debe"],
+        "| Haber:",
+        cuenta["haber"]
+    )
+
+print("\nTOTAL DEBE:", resultado_compra["debe"])
+print("TOTAL HABER:", resultado_compra["haber"])
+print("DIFERENCIA:", resultado_compra["diferencia"])
+print("¿ASIENTO CUADRADO?:", resultado_compra["cuadrado"])
