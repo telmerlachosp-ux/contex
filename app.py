@@ -265,6 +265,10 @@ if st.button("PROBAR MOTOR"):
 # PRUEBA DE GEMINI
 # ==========================================
 
+# ==========================================
+# PRUEBA DE GEMINI
+# ==========================================
+
 st.divider()
 
 st.subheader(
@@ -280,35 +284,26 @@ if st.button("PROBAR GEMINI"):
             "GEMINI_API_KEY"
         ]
 
-
         cliente = genai.Client(
             api_key=api_key
         )
 
-
-        respuesta = cliente.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=(
-                "Responde únicamente: "
-                "CONEXIÓN CORRECTA"
-            )
+        interaction = cliente.interactions.create(
+            model="gemini-3.5-flash-lite",
+            input="Responde únicamente: CONEXIÓN CORRECTA"
         )
-
 
         st.success(
             "Gemini está conectado correctamente."
         )
 
-
         st.write(
             "Respuesta de Gemini:"
         )
 
-
         st.write(
-            respuesta.text
+            interaction.output_text
         )
-
 
     except Exception as error:
 
