@@ -1,7 +1,6 @@
 import streamlit as st
 import fitz
 from google import genai
-import json
 
 from motor_reglas import (
     determinar_igv,
@@ -35,15 +34,7 @@ st.write(
 
 
 # ==========================================
-# CARGA DEL PDF
-# ==========================================
-
-archivo = st.file_uploader(
-    "Selecciona tu archivo PDF",
-    type=["pdf"]
-)
-# ==========================================
-# FUNCIÓN DE ANÁLISIS CONTABLE
+# FUNCIÓN PARA ANALIZAR CON GEMINI
 # ==========================================
 
 def analizar_documento_con_gemini(texto):
@@ -126,21 +117,35 @@ con esta estructura:
 }
 """
 
-    contenido = instrucciones + "\n\nDOCUMENTO:\n" + texto
+    contenido = (
+        instrucciones
+        + "\n\nDOCUMENTO:\n"
+        + texto
+    )
 
     interaction = cliente.interactions.create(
         model="gemini-3.5-flash-lite",
         input=contenido
     )
 
-    respuesta = interaction.output_text
+    return interaction.output_text
 
-    return respuesta
+
+# ==========================================
+# CARGA DEL PDF
+# ==========================================
+
+archivo = st.file_uploader(
+    "Selecciona tu archivo PDF",
+    type=["pdf"]
+)
 
 
 if archivo is not None:
 
-    st.success(f"Archivo cargado: {archivo.name}")
+    st.success(
+        f"Archivo cargado: {archivo.name}"
+    )
 
     if st.button("LEER DOCUMENTO"):
 
@@ -182,7 +187,12 @@ if archivo is not None:
                     texto_completo,
                     height=500
                 )
-                                st.divider()
+
+                # ==========================================
+                # ANÁLISIS CON GEMINI
+                # ==========================================
+
+                st.divider()
 
                 st.subheader(
                     "🤖 Análisis contable con CONTEX"
@@ -220,7 +230,8 @@ if archivo is not None:
                     except Exception as error:
 
                         st.error(
-                            f"No se pudo analizar el documento: {error}"
+                            "No se pudo analizar el documento: "
+                            + str(error)
                         )
 
             else:
@@ -244,34 +255,22 @@ if archivo is not None:
 
 st.divider()
 
-st.subheader("🧪 Prueba del motor de CONTEX")
+st.subheader(
+    "🧪 Prueba del motor de CONTEX"
+)
 
 
 if st.button("PROBAR MOTOR"):
-
-    # --------------------------------------
-    # PRUEBA DEL IGV
-    # --------------------------------------
 
     resultado_igv = determinar_igv(
         tratamiento_igv="GRAVADA",
         base_imponible=10000
     )
 
-
-    # --------------------------------------
-    # PRUEBA DE BANCARIZACIÓN
-    # --------------------------------------
-
     resultado_bancarizacion = verificar_bancarizacion(
         monto_pago=5000,
         medio_pago=None
     )
-
-
-    # --------------------------------------
-    # CUENTAS DEL ASIENTO
-    # --------------------------------------
 
     cuentas = [
 
@@ -298,19 +297,9 @@ if st.button("PROBAR MOTOR"):
 
     ]
 
-
-    # --------------------------------------
-    # VALIDACIÓN
-    # --------------------------------------
-
     resultado_validacion = validar_asiento(
         cuentas
     )
-
-
-    # --------------------------------------
-    # MOSTRAR RESULTADOS DEL IGV
-    # --------------------------------------
 
     st.write("### Resultado del IGV")
 
@@ -328,11 +317,6 @@ if st.button("PROBAR MOTOR"):
         "Total:",
         resultado_igv["total"]
     )
-
-
-    # --------------------------------------
-    # MOSTRAR BANCARIZACIÓN
-    # --------------------------------------
 
     st.write(
         "### Resultado de bancarización"
@@ -358,11 +342,6 @@ if st.button("PROBAR MOTOR"):
         ]
     )
 
-
-    # --------------------------------------
-    # MOSTRAR VALIDACIÓN
-    # --------------------------------------
-
     st.write(
         "### Validación del asiento"
     )
@@ -382,7 +361,6 @@ if st.button("PROBAR MOTOR"):
         resultado_validacion["diferencia"]
     )
 
-
     if resultado_validacion["cuadrado"]:
 
         st.success(
@@ -394,7 +372,6 @@ if st.button("PROBAR MOTOR"):
         st.error(
             "❌ El asiento NO está cuadrado."
         )
-
 
 
 # ==========================================
