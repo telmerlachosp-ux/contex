@@ -170,7 +170,6 @@ if st.button("PROBAR MOTOR"):
         "Diferencia:",
         resultado_validacion["diferencia"]
     )
-    
         if resultado_validacion["cuadrado"]:
         st.success("✅ El asiento está cuadrado.")
     else:
