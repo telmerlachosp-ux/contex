@@ -1,12 +1,15 @@
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
+from datetime import date
 
 
 def generar_excel_compra(datos_extraidos, resultado):
     """
     Recibe los datos identificados por la IA y el resultado del asiento,
-    y devuelve un archivo Excel en memoria (listo para descargar).
+    y devuelve un archivo Excel en memoria (listo para descargar),
+    con formato de libro diario: el N° correlativo, la fecha y la glosa
+    aparecen una sola vez por cada asiento.
     """
     wb = Workbook()
 
@@ -35,11 +38,11 @@ def generar_excel_compra(datos_extraidos, resultado):
     hoja_resumen.column_dimensions["B"].width = 15
 
     # -------------------------
-    # HOJA 2: ASIENTO CONTABLE
+    # HOJA 2: LIBRO DIARIO (ASIENTOS)
     # -------------------------
     hoja_asiento = wb.create_sheet("Asientos")
 
-    encabezados = ["Asiento", "Código", "Cuenta", "Debe", "Haber", "Glosa"]
+    encabezados = ["N° Corr", "Fecha", "Glosa", "Código", "Denominación", "Debe", "Haber"]
     hoja_asiento.append(encabezados)
 
     for celda in hoja_asiento[1]:
@@ -47,34 +50,74 @@ def generar_excel_compra(datos_extraidos, resultado):
         celda.fill = PatternFill(
             start_color="305496", end_color="305496", fill_type="solid"
         )
-        celda.alignment = Alignment(horizontal="center")
+        celda.alignment = Alignment(horizontal="center", vertical="center")
+
+    fecha_hoy = date.today().strftime("%d/%m/%Y")
+
+    fila_actual = 2
+    asiento_anterior = None
+    fila_inicio_bloque = 2
 
     for cuenta in resultado["cuentas"]:
-        hoja_asiento.append([
-            cuenta["asiento"],
-            cuenta["codigo"],
-            cuenta["cuenta"],
-            cuenta["debe"],
-            cuenta["haber"],
-            cuenta["glosa"]
-        ])
+        numero_asiento = cuenta["asiento"]
 
-    fila_total = hoja_asiento.max_row + 2
-    hoja_asiento.cell(row=fila_total, column=3, value="TOTALES").font = Font(bold=True)
-    hoja_asiento.cell(row=fila_total, column=4, value=resultado["debe"]).font = Font(bold=True)
-    hoja_asiento.cell(row=fila_total, column=5, value=resultado["haber"]).font = Font(bold=True)
+        if numero_asiento != asiento_anterior:
+            if asiento_anterior is not None:
+                fila_fin_bloque = fila_actual - 1
+                if fila_fin_bloque > fila_inicio_bloque:
+                    for columna in [1, 2, 3]:
+                        hoja_asiento.merge_cells(
+                            start_row=fila_inicio_bloque,
+                            start_column=columna,
+                            end_row=fila_fin_bloque,
+                            end_column=columna
+                        )
+
+            hoja_asiento.cell(row=fila_actual, column=1, value=numero_asiento)
+            hoja_asiento.cell(row=fila_actual, column=2, value=fecha_hoy)
+            hoja_asiento.cell(row=fila_actual, column=3, value=cuenta["glosa"])
+
+            fila_inicio_bloque = fila_actual
+            asiento_anterior = numero_asiento
+
+        hoja_asiento.cell(row=fila_actual, column=4, value=cuenta["codigo"])
+        hoja_asiento.cell(row=fila_actual, column=5, value=cuenta["cuenta"])
+        hoja_asiento.cell(row=fila_actual, column=6, value=cuenta["debe"])
+        hoja_asiento.cell(row=fila_actual, column=7, value=cuenta["haber"])
+
+        fila_actual += 1
+
+    fila_fin_bloque = fila_actual - 1
+    if fila_fin_bloque > fila_inicio_bloque:
+        for columna in [1, 2, 3]:
+            hoja_asiento.merge_cells(
+                start_row=fila_inicio_bloque,
+                start_column=columna,
+                end_row=fila_fin_bloque,
+                end_column=columna
+            )
+
+    for fila in hoja_asiento.iter_rows(min_row=2, max_row=fila_actual - 1):
+        for celda in fila:
+            celda.alignment = Alignment(vertical="top", wrap_text=True)
+
+    fila_total = fila_actual + 1
+    hoja_asiento.cell(row=fila_total, column=5, value="TOTALES").font = Font(bold=True)
+    hoja_asiento.cell(row=fila_total, column=6, value=resultado["debe"]).font = Font(bold=True)
+    hoja_asiento.cell(row=fila_total, column=7, value=resultado["haber"]).font = Font(bold=True)
 
     fila_validacion = fila_total + 1
-    texto_validacion = "CUADRADO ✅" if resultado["cuadrado"] else "NO CUADRADO ❌"
-    hoja_asiento.cell(row=fila_validacion, column=3, value="Validación")
-    hoja_asiento.cell(row=fila_validacion, column=4, value=texto_validacion)
+    texto_validacion = "CUADRADO" if resultado["cuadrado"] else "NO CUADRADO"
+    hoja_asiento.cell(row=fila_validacion, column=5, value="Validación")
+    hoja_asiento.cell(row=fila_validacion, column=6, value=texto_validacion)
 
-    hoja_asiento.column_dimensions["A"].width = 12
-    hoja_asiento.column_dimensions["B"].width = 15
-    hoja_asiento.column_dimensions["C"].width = 30
-    hoja_asiento.column_dimensions["D"].width = 15
-    hoja_asiento.column_dimensions["E"].width = 15
-    hoja_asiento.column_dimensions["F"].width = 60
+    hoja_asiento.column_dimensions["A"].width = 10
+    hoja_asiento.column_dimensions["B"].width = 12
+    hoja_asiento.column_dimensions["C"].width = 45
+    hoja_asiento.column_dimensions["D"].width = 12
+    hoja_asiento.column_dimensions["E"].width = 28
+    hoja_asiento.column_dimensions["F"].width = 15
+    hoja_asiento.column_dimensions["G"].width = 15
 
     # -------------------------
     # GUARDAR EN MEMORIA
