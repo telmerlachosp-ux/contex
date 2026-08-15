@@ -58,9 +58,6 @@ def generar_compra(
             }
         )
 
-    # -------------------------------------------------
-    # ASIENTO 2: entrada de mercadería al almacén
-    # -------------------------------------------------
     cuentas.append(
         {
             "asiento": 2,
@@ -81,9 +78,3 @@ def generar_compra(
             "glosa": glosa_almacen
         }
     )
-
-    return crear_asiento(cuentas)
-            "haber": base_imponible
-        }
-    )
-    return crear_asiento(cuentas)
