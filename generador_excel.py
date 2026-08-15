@@ -39,7 +39,7 @@ def generar_excel_compra(datos_extraidos, resultado):
     # -------------------------
     hoja_asiento = wb.create_sheet("Asientos")
 
- encabezados = ["Asiento", "Código", "Cuenta", "Debe", "Haber", "Glosa"]
+    encabezados = ["Asiento", "Código", "Cuenta", "Debe", "Haber", "Glosa"]
     hoja_asiento.append(encabezados)
 
     for celda in hoja_asiento[1]:
@@ -58,6 +58,7 @@ def generar_excel_compra(datos_extraidos, resultado):
             cuenta["haber"],
             cuenta["glosa"]
         ])
+
     fila_total = hoja_asiento.max_row + 2
     hoja_asiento.cell(row=fila_total, column=3, value="TOTALES").font = Font(bold=True)
     hoja_asiento.cell(row=fila_total, column=4, value=resultado["debe"]).font = Font(bold=True)
@@ -69,9 +70,10 @@ def generar_excel_compra(datos_extraidos, resultado):
     hoja_asiento.cell(row=fila_validacion, column=4, value=texto_validacion)
 
     hoja_asiento.column_dimensions["A"].width = 12
-    hoja_asiento.column_dimensions["B"].width = 30
-    hoja_asiento.column_dimensions["C"].width = 15
+    hoja_asiento.column_dimensions["B"].width = 15
+    hoja_asiento.column_dimensions["C"].width = 30
     hoja_asiento.column_dimensions["D"].width = 15
+    hoja_asiento.column_dimensions["E"].width = 15
     hoja_asiento.column_dimensions["F"].width = 60
 
     # -------------------------
