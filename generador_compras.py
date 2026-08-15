@@ -68,15 +68,9 @@ def generar_compra(
             "glosa": glosa_almacen
         }
     )
-  cuentas.append(
+ cuentas.append(
         {
             "asiento": 2,
             "codigo": "61111",
-            "cuenta": "Variación de mercaderías",
-            "debe": 0,
-            "haber": base_imponible,
-            "glosa": glosa_almacen
-        }
-    )
 
     return crear_asiento(cuentas)
