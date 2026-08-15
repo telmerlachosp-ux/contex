@@ -65,3 +65,4 @@ def generar_compra(
             "haber": base_imponible
         }
     )
+return crear_asiento(cuentas)
