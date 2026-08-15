@@ -634,3 +634,80 @@ if st.button("RESOLVER VENTA CON IA"):
 
         except Exception as error:
             st.error(f"Ocurrió un error al resolver la venta: {error}")
+# -------------------------------------------------
+# RESOLVER PRESTAMO FINANCIERO CON IA
+# -------------------------------------------------
+from generador_prestamos import generar_prestamo_desde_enunciado
+from interpretador_gemini import extraer_datos_prestamo
+from generador_excel import generar_excel_multiples_asientos
+
+st.divider()
+st.subheader("🏦 Resolver préstamo financiero con IA")
+
+texto_prestamo = st.text_area(
+    "Pega aquí el enunciado del ejercicio de préstamo:",
+    height=200,
+    key="texto_prestamo"
+)
+
+if st.button("RESOLVER PRESTAMO CON IA"):
+    if texto_prestamo.strip() == "":
+        st.warning("Por favor pega un ejercicio antes de continuar.")
+    else:
+        try:
+            api_key = st.secrets["GEMINI_API_KEY"]
+
+            with st.spinner("La IA está leyendo el ejercicio..."):
+                datos_prestamo = extraer_datos_prestamo(texto_prestamo, api_key)
+
+            st.write("### Datos identificados por la IA")
+            st.json(datos_prestamo)
+
+            resultado = generar_prestamo_desde_enunciado(
+                texto_enunciado=texto_prestamo,
+                monto_prestamo=datos_prestamo["monto_prestamo"],
+                monto_interes=datos_prestamo["monto_interes"],
+                entidad_financiera=datos_prestamo.get("entidad_financiera", ""),
+                medio_pago=datos_prestamo.get("medio_pago", "TRANSFERENCIA"),
+                modalidad_interes=datos_prestamo.get("modalidad_interes")
+            )
+
+            if resultado["requiere_aclaracion"]:
+                st.warning(
+                    "No se pudo determinar si el interés es "
+                    "ADELANTADO o VENCIDO (mes a mes). "
+                    + resultado["deteccion"]["observacion"]
+                )
+            else:
+                st.info(
+                    f"Modalidad de interés detectada: "
+                    f"**{resultado['deteccion']['modalidad']}**"
+                )
+
+                for asiento in resultado["asientos"]:
+                    st.write(f"### {asiento['tipo_asiento']}")
+                    for cuenta in asiento["cuentas"]:
+                        st.write(
+                            cuenta["codigo"], "-", cuenta["cuenta"],
+                            "| Debe:", cuenta["debe"],
+                            "| Haber:", cuenta["haber"]
+                        )
+                    if asiento["validacion"]["cuadrado"]:
+                        st.success("✅ Este asiento está cuadrado.")
+                    else:
+                        st.error("❌ Este asiento NO está cuadrado.")
+
+                archivo_excel_prestamo = generar_excel_multiples_asientos(
+                    datos_prestamo, resultado["asientos"]
+                )
+
+                st.download_button(
+                    label="📥 Descargar Excel",
+                    data=archivo_excel_prestamo,
+                    file_name="prestamo_resuelto.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="descarga_prestamo"
+                )
+
+        except Exception as error:
+            st.error(f"Ocurrió un error al resolver el préstamo: {error}")
