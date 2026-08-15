@@ -4,13 +4,74 @@ from io import BytesIO
 from datetime import date
 
 
-def generar_excel_compra(datos_extraidos, resultado):
+def _normalizar_resultado(resultado):
+    """
+    Acepta dos formatos de 'resultado' y los deja iguales:
+
+    Formato A (plano, como el de generar_compra original):
+        {"cuentas": [...], "debe": x, "haber": y, "diferencia": z, "cuadrado": bool}
+
+    Formato B (anidado, como el de los generadores nuevos:
+    provisiones, constitución, préstamos):
+        {"cuentas": [...], "validacion": {"debe": x, "haber": y,
+                                           "diferencia": z, "cuadrado": bool}}
+
+    Devuelve siempre el formato A.
+    """
+
+    if "validacion" in resultado:
+        return {
+            "cuentas": resultado["cuentas"],
+            "debe": resultado["validacion"]["debe"],
+            "haber": resultado["validacion"]["haber"],
+            "diferencia": resultado["validacion"]["diferencia"],
+            "cuadrado": resultado["validacion"]["cuadrado"]
+        }
+
+    return resultado
+
+
+def _completar_asiento_y_glosa(cuentas, glosa_por_defecto):
+    """
+    Si las cuentas no traen 'asiento' o 'glosa' (como pasa hoy con
+    generar_compra, generar_venta, y todos los generadores nuevos),
+    se los agrega automáticamente: todas bajo el asiento N° 1, con
+    la glosa indicada.
+
+    Si YA traen 'asiento'/'glosa' (por ejemplo si en el futuro
+    decides agregarlos desde app.py), se respetan tal cual.
+    """
+
+    cuentas_completas = []
+
+    for cuenta in cuentas:
+        nueva = dict(cuenta)
+        nueva.setdefault("asiento", 1)
+        nueva.setdefault("glosa", glosa_por_defecto)
+        cuentas_completas.append(nueva)
+
+    return cuentas_completas
+
+
+def generar_excel_compra(datos_extraidos, resultado, glosa="Asiento contable"):
     """
     Recibe los datos identificados por la IA y el resultado del asiento,
     y devuelve un archivo Excel en memoria (listo para descargar),
     con formato de libro diario: el N° correlativo, la fecha y la glosa
     aparecen una sola vez por cada asiento.
+
+    Funciona tanto con el formato plano de generar_compra/generar_venta
+    como con el formato anidado (validacion) de los generadores nuevos.
+    Si las cuentas no traen 'asiento'/'glosa', se completan solas.
     """
+
+    resultado = _normalizar_resultado(resultado)
+    cuentas_normalizadas = _completar_asiento_y_glosa(
+        resultado["cuentas"], glosa
+    )
+    resultado = dict(resultado)
+    resultado["cuentas"] = cuentas_normalizadas
+
     wb = Workbook()
 
     # -------------------------
@@ -23,13 +84,13 @@ def generar_excel_compra(datos_extraidos, resultado):
     hoja_resumen["A1"].font = Font(bold=True, size=14)
 
     hoja_resumen["A3"] = "Base imponible"
-    hoja_resumen["B3"] = datos_extraidos["base_imponible"]
+    hoja_resumen["B3"] = datos_extraidos.get("base_imponible", "")
 
     hoja_resumen["A4"] = "IGV"
-    hoja_resumen["B4"] = datos_extraidos["igv"]
+    hoja_resumen["B4"] = datos_extraidos.get("igv", "")
 
     hoja_resumen["A5"] = "Total"
-    hoja_resumen["B5"] = datos_extraidos["total"]
+    hoja_resumen["B5"] = datos_extraidos.get("total", "")
 
     hoja_resumen["A6"] = "Condición de pago"
     hoja_resumen["B6"] = datos_extraidos.get(
@@ -129,3 +190,46 @@ def generar_excel_compra(datos_extraidos, resultado):
     archivo_en_memoria.seek(0)
 
     return archivo_en_memoria
+
+
+def generar_excel_multiples_asientos(datos_extraidos, lista_asientos):
+    """
+    Igual que generar_excel_compra, pero para generadores que
+    devuelven VARIOS asientos de una vez (como
+    generar_constitucion_completa o generar_prestamo_desde_enunciado,
+    que devuelven una lista de asientos: suscripción, aporte,
+    gastos, etc.)
+
+    'lista_asientos' es la lista tal como la devuelven esos
+    generadores: cada elemento con 'tipo_asiento', 'cuentas' y
+    'validacion'.
+
+    Cada asiento de la lista se numera correlativamente (1, 2, 3...)
+    y usa su propio 'tipo_asiento' como glosa.
+    """
+
+    cuentas_combinadas = []
+    total_debe = 0.0
+    total_haber = 0.0
+
+    for numero, asiento in enumerate(lista_asientos, start=1):
+        glosa = asiento.get("tipo_asiento", f"Asiento {numero}")
+
+        for cuenta in asiento["cuentas"]:
+            nueva = dict(cuenta)
+            nueva["asiento"] = numero
+            nueva["glosa"] = glosa
+            cuentas_combinadas.append(nueva)
+
+        total_debe += asiento["validacion"]["debe"]
+        total_haber += asiento["validacion"]["haber"]
+
+    resultado_combinado = {
+        "cuentas": cuentas_combinadas,
+        "debe": round(total_debe, 2),
+        "haber": round(total_haber, 2),
+        "diferencia": round(total_debe - total_haber, 2),
+        "cuadrado": round(total_debe - total_haber, 2) == 0
+    }
+
+    return generar_excel_compra(datos_extraidos, resultado_combinado)
