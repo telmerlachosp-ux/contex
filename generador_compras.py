@@ -24,7 +24,7 @@ def generar_compra(
     if condicion_pago.upper() == "CREDITO":
         cuentas.append({"asiento": 1, "codigo": "42121", "cuenta": "Facturas por pagar", "debe": 0, "haber": total, "glosa": glosa_compra})
     else:
-        cuentas.append({"asiento": 1, "codigo": "1011", "cuenta": "Caja", "debe": 0, "haber": total, "glosa": glosa_compra})
+        cuentas.append({"asiento": 1, "codigo": "10111", "cuenta": "Caja", "debe": 0, "haber": total, "glosa": glosa_compra})
 
     cuentas.append({"asiento": 2, "codigo": "20111", "cuenta": "Mercaderías - Almacén", "debe": base_imponible, "haber": 0, "glosa": glosa_almacen})
     cuentas.append({"asiento": 2, "codigo": "61111", "cuenta": "Variación de mercaderías", "debe": 0, "haber": base_imponible, "glosa": glosa_almacen})
