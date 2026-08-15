@@ -573,3 +573,64 @@ if st.button("RESOLVER CON IA"):
               
         except Exception as error:
             st.error(f"Ocurrió un error al resolver el ejercicio: {error}")
+# -------------------------------------------------
+# RESOLVER VENTA CON IA (PRUEBA)
+# -------------------------------------------------
+from generador_ventas import generar_venta
+from interpretador_gemini import extraer_datos_venta
+
+st.divider()
+st.subheader("🧪 Resolver venta con IA (prueba)")
+
+texto_venta = st.text_area(
+    "Pega aquí el enunciado del ejercicio de venta:",
+    height=200
+)
+
+if st.button("RESOLVER VENTA CON IA"):
+    if texto_venta.strip() == "":
+        st.warning("Por favor pega un ejercicio antes de continuar.")
+    else:
+        try:
+            api_key = st.secrets["GEMINI_API_KEY"]
+
+            with st.spinner("La IA está leyendo el ejercicio..."):
+                datos_venta = extraer_datos_venta(texto_venta, api_key)
+
+            st.write("### Datos identificados por la IA")
+            st.json(datos_venta)
+
+            resultado_venta = generar_venta(
+                base_imponible=datos_venta["base_imponible"],
+                igv=datos_venta["igv"],
+                total=datos_venta["total"],
+                condicion_cobro=datos_venta["condicion_cobro"]
+            )
+
+            st.write("### Asiento generado")
+            for cuenta in resultado_venta["cuentas"]:
+                st.write(
+                    cuenta["codigo"], "-", cuenta["cuenta"],
+                    "| Debe:", cuenta["debe"],
+                    "| Haber:", cuenta["haber"]
+                )
+
+            if resultado_venta["cuadrado"]:
+                st.success("✅ El asiento está cuadrado.")
+            else:
+                st.error("❌ El asiento NO está cuadrado.")
+
+            archivo_excel_venta = generar_excel_compra(
+                datos_venta, resultado_venta
+            )
+
+            st.download_button(
+                label="📥 Descargar Excel",
+                data=archivo_excel_venta,
+                file_name="venta_resuelta.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="descarga_venta"
+            )
+
+        except Exception as error:
+            st.error(f"Ocurrió un error al resolver la venta: {error}")
