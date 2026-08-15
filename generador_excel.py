@@ -32,7 +32,9 @@ def generar_excel_compra(datos_extraidos, resultado):
     hoja_resumen["B5"] = datos_extraidos["total"]
 
     hoja_resumen["A6"] = "Condición de pago"
-    hoja_resumen["B6"] = datos_extraidos["condicion_pago"]
+    hoja_resumen["B6"] = datos_extraidos.get(
+        "condicion_pago", datos_extraidos.get("condicion_cobro", "")
+    )
 
     hoja_resumen.column_dimensions["A"].width = 20
     hoja_resumen.column_dimensions["B"].width = 15
