@@ -506,6 +506,7 @@ if st.button("PROBAR GENERADOR DE COMPRA"):
 # RESOLVER EJERCICIO CON IA
 # -------------------------------------------------
 from interpretador_gemini import extraer_datos_compra
+from generador_excel import generar_excel_compra
 
 st.divider()
 st.subheader("📚 Resolver ejercicio con IA")
@@ -557,7 +558,18 @@ if st.button("RESOLVER CON IA"):
             if resultado_ia["cuadrado"]:
                 st.success("✅ El asiento está cuadrado.")
             else:
+        
                 st.error("❌ El asiento NO está cuadrado.")
+                archivo_excel = generar_excel_compra(
+                datos_extraidos, resultado_ia
+            )
+
+            st.download_button(
+                label="📥 Descargar Excel",
+                data=archivo_excel,
+                file_name="ejercicio_resuelto.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
         except Exception as error:
             st.error(f"Ocurrió un error al resolver el ejercicio: {error}")
