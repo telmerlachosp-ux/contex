@@ -467,3 +467,38 @@ print("\nTOTAL DEBE:", resultado_compra["debe"])
 print("TOTAL HABER:", resultado_compra["haber"])
 print("DIFERENCIA:", resultado_compra["diferencia"])
 print("¿ASIENTO CUADRADO?:", resultado_compra["cuadrado"])
+# -------------------------------------------------
+# PRUEBA VISUAL DEL GENERADOR DE COMPRAS
+# -------------------------------------------------
+st.divider()
+st.subheader("🧾 Prueba del generador de compras")
+
+if st.button("PROBAR GENERADOR DE COMPRA"):
+    resultado_visual = generar_compra(
+        base_imponible=10000,
+        igv=1800,
+        total=11800,
+        condicion_pago="CREDITO"
+    )
+
+    st.write("### Asiento generado")
+    for cuenta in resultado_visual["cuentas"]:
+        st.write(
+            cuenta["codigo"],
+            "-",
+            cuenta["cuenta"],
+            "| Debe:",
+            cuenta["debe"],
+            "| Haber:",
+            cuenta["haber"]
+        )
+
+    st.write("### Validación")
+    st.write("Debe:", resultado_visual["debe"])
+    st.write("Haber:", resultado_visual["haber"])
+    st.write("Diferencia:", resultado_visual["diferencia"])
+
+    if resultado_visual["cuadrado"]:
+        st.success("✅ El asiento está cuadrado.")
+    else:
+        st.error("❌ El asiento NO está cuadrado.")
