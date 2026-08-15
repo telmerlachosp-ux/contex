@@ -554,13 +554,13 @@ if st.button("RESOLVER CON IA"):
             st.write("Debe:", resultado_ia["debe"])
             st.write("Haber:", resultado_ia["haber"])
             st.write("Diferencia:", resultado_ia["diferencia"])
-
+            
             if resultado_ia["cuadrado"]:
                 st.success("✅ El asiento está cuadrado.")
             else:
-        
                 st.error("❌ El asiento NO está cuadrado.")
-                archivo_excel = generar_excel_compra(
+
+            archivo_excel = generar_excel_compra(
                 datos_extraidos, resultado_ia
             )
 
@@ -570,6 +570,6 @@ if st.button("RESOLVER CON IA"):
                 file_name="ejercicio_resuelto.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-
+              
         except Exception as error:
             st.error(f"Ocurrió un error al resolver el ejercicio: {error}")
