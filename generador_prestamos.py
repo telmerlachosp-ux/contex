@@ -628,3 +628,8 @@ def generar_prestamo_desde_enunciado(
         "asientos": asientos,
         "requiere_aclaracion": False
     }
+
+        "deteccion": deteccion,
+        "asientos": asientos,
+        "requiere_aclaracion": False
+    }
