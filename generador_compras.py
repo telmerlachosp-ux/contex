@@ -9,9 +9,9 @@ def generar_compra(
 ):
     """
     Genera el asiento contable de una compra
-    de mercaderías gravada con IGV.
+    de mercaderías gravada con IGV, incluyendo
+    el asiento de destino (entrada a almacén).
     """
-
     cuentas = [
         {
             "codigo": "6011",
@@ -28,7 +28,6 @@ def generar_compra(
     ]
 
     if condicion_pago.upper() == "CREDITO":
-
         cuentas.append(
             {
                 "codigo": "4212",
@@ -37,9 +36,7 @@ def generar_compra(
                 "haber": total
             }
         )
-
     else:
-
         cuentas.append(
             {
                 "codigo": "1011",
@@ -49,4 +46,22 @@ def generar_compra(
             }
         )
 
-    return crear_asiento(cuentas)
+    # -------------------------------------------------
+    # ASIENTO DE DESTINO: entrada de mercadería al almacén
+    # -------------------------------------------------
+    cuentas.append(
+        {
+            "codigo": "20111",
+            "cuenta": "Mercaderías - Almacén",
+            "debe": base_imponible,
+            "haber": 0
+        }
+    )
+    cuentas.append(
+        {
+            "codigo": "61111",
+            "cuenta": "Variación de mercaderías",
+            "debe": 0,
+            "haber": base_imponible
+        }
+    )
