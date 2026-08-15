@@ -502,3 +502,62 @@ if st.button("PROBAR GENERADOR DE COMPRA"):
         st.success("✅ El asiento está cuadrado.")
     else:
         st.error("❌ El asiento NO está cuadrado.")
+# -------------------------------------------------
+# RESOLVER EJERCICIO CON IA
+# -------------------------------------------------
+from interpretador_gemini import extraer_datos_compra
+
+st.divider()
+st.subheader("📚 Resolver ejercicio con IA")
+
+texto_ejercicio = st.text_area(
+    "Pega aquí el enunciado del ejercicio de compra:",
+    height=200
+)
+
+if st.button("RESOLVER CON IA"):
+    if texto_ejercicio.strip() == "":
+        st.warning("Por favor pega un ejercicio antes de continuar.")
+    else:
+        try:
+            api_key = st.secrets["GEMINI_API_KEY"]
+
+            with st.spinner("La IA está leyendo el ejercicio..."):
+                datos_extraidos = extraer_datos_compra(
+                    texto_ejercicio, api_key
+                )
+
+            st.write("### Datos identificados por la IA")
+            st.json(datos_extraidos)
+
+            resultado_ia = generar_compra(
+                base_imponible=datos_extraidos["base_imponible"],
+                igv=datos_extraidos["igv"],
+                total=datos_extraidos["total"],
+                condicion_pago=datos_extraidos["condicion_pago"]
+            )
+
+            st.write("### Asiento generado")
+            for cuenta in resultado_ia["cuentas"]:
+                st.write(
+                    cuenta["codigo"],
+                    "-",
+                    cuenta["cuenta"],
+                    "| Debe:",
+                    cuenta["debe"],
+                    "| Haber:",
+                    cuenta["haber"]
+                )
+
+            st.write("### Validación")
+            st.write("Debe:", resultado_ia["debe"])
+            st.write("Haber:", resultado_ia["haber"])
+            st.write("Diferencia:", resultado_ia["diferencia"])
+
+            if resultado_ia["cuadrado"]:
+                st.success("✅ El asiento está cuadrado.")
+            else:
+                st.error("❌ El asiento NO está cuadrado.")
+
+        except Exception as error:
+            st.error(f"Ocurrió un error al resolver el ejercicio: {error}")
