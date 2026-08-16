@@ -62,6 +62,7 @@ def _extraer_texto_imagen(archivo, api_key):
         model="gemini-3.5-flash-lite",
         input=[
             {
+                "type": "text",
                 "text": (
                     "Transcribe TODO el texto de esta imagen tal como "
                     "aparece, sin resumir ni interpretar. Es un ejercicio "
@@ -69,8 +70,10 @@ def _extraer_texto_imagen(archivo, api_key):
                 )
             },
             {
-                "inline_data": {
-                    "mime_type": media_type,
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": media_type,
                     "data": imagen_base64
                 }
             }
