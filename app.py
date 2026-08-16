@@ -1163,7 +1163,3 @@ if st.session_state.historial_asientos:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="descarga_unificado"
     )
-        file_name="ejercicios_resueltos.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        key="descarga_unificado"
-    )
