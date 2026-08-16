@@ -27,9 +27,9 @@ def generar_planilla(
     essalud = round(sueldo_bruto * TASA_ESSALUD, 2)
     neto = round(sueldo_bruto - onp, 2)
 
-    glosa_provision = "Provisión de planilla usando las cuentas 62111, 62711, 40312, 40311 y 41011"
-    glosa_pago_trabajador = "Pago del neto de planilla al trabajador usando las cuentas 41011 y 10111"
-    glosa_pago_sunat = "Pago de aportes ONP y Essalud a SUNAT usando las cuentas 40312, 40311 y 10111"
+    glosa_provision = "Provisión de planilla del período"
+    glosa_pago_trabajador = "Pago de remuneraciones al trabajador"
+    glosa_pago_sunat = "Pago de aportes ONP y Essalud a SUNAT"
 
     cuentas = []
 
@@ -50,7 +50,7 @@ def generar_planilla(
         cuentas.append({"asiento": 3, "codigo": "10111", "cuenta": "Caja", "debe": 0, "haber": total_sunat, "glosa": glosa_pago_sunat})
 
     destino_info = DESTINOS.get(destino.upper(), DESTINOS["ADMINISTRACION"])
-    glosa_destino = f"Destino del gasto de planilla usando las cuentas {destino_info['codigo']} y 79111"
+    glosa_destino = "Distribución del gasto de planilla por función"
     gasto_total = round(sueldo_bruto + essalud, 2)
 
     cuentas.append({"asiento": 4, "codigo": destino_info["codigo"], "cuenta": destino_info["nombre"], "debe": gasto_total, "haber": 0, "glosa": glosa_destino})
