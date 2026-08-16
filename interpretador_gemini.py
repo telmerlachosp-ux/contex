@@ -85,3 +85,49 @@ Ejercicio:
     datos = json.loads(texto_limpio)
 
     return datos
+def extraer_datos_prestamo(texto_ejercicio, api_key):
+    """
+    Recibe el texto de un ejercicio de préstamo financiero y le pide
+    a Gemini que extraiga los datos necesarios en formato JSON.
+    """
+    cliente = genai.Client(api_key=api_key)
+
+    prompt = f"""
+Eres un asistente contable. Lee el siguiente ejercicio y extrae ÚNICAMENTE
+los datos numéricos necesarios para registrar un PRÉSTAMO FINANCIERO.
+
+Responde EXCLUSIVAMENTE con un objeto JSON válido, sin explicaciones,
+sin texto adicional, sin marcas de código (nada de ```).
+
+El formato exacto debe ser:
+{{
+  "monto_prestamo": numero,
+  "monto_interes": numero,
+  "entidad_financiera": "nombre del banco o entidad, o vacío si no se menciona",
+  "medio_pago": "EFECTIVO" o "TRANSFERENCIA",
+  "modalidad_interes": "ADELANTADO" o "VENCIDO"
+}}
+
+Reglas:
+- Si el enunciado menciona que el interés se paga "por adelantado",
+  "anticipado" o "se descuenta", usa "ADELANTADO".
+- Si el enunciado menciona "mes a mes", "mensualmente" o "al vencimiento",
+  usa "VENCIDO".
+- Si no queda claro, usa "VENCIDO" (es lo más común).
+- Si no se menciona el medio de pago, usa "TRANSFERENCIA".
+
+Ejercicio:
+\"\"\"{texto_ejercicio}\"\"\"
+"""
+
+    interaction = cliente.interactions.create(
+        model="gemini-3.5-flash-lite",
+        input=prompt
+    )
+
+    texto_respuesta = interaction.output_text
+    texto_limpio = re.sub(r"```json|```", "", texto_respuesta).strip()
+
+    datos = json.loads(texto_limpio)
+
+    return datos
