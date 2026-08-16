@@ -60,7 +60,7 @@ def generar_depreciacion(
     nombre_gasto = f"Depreciación - {tipo['nombre']}"
     nombre_acum = f"Depreciación acumulada - {tipo['nombre']}"
 
-    glosa_deprec = f"Depreciación del período usando las cuentas {tipo['codigo_gasto']} y {tipo['codigo_acum']}"
+    glosa_deprec = f"Depreciación del período - {tipo['nombre']}"
 
     cuentas = []
 
@@ -68,7 +68,7 @@ def generar_depreciacion(
     cuentas.append({"asiento": 1, "codigo": tipo["codigo_acum"], "cuenta": nombre_acum, "debe": 0, "haber": monto, "glosa": glosa_deprec})
 
     destino_info = DESTINOS.get(destino.upper(), DESTINOS["ADMINISTRACION"])
-    glosa_destino = f"Destino del gasto de depreciación usando las cuentas {destino_info['codigo']} y 79111"
+    glosa_destino = "Distribución del gasto de depreciación por función"
 
     cuentas.append({"asiento": 2, "codigo": destino_info["codigo"], "cuenta": destino_info["nombre"], "debe": monto, "haber": 0, "glosa": glosa_destino})
     cuentas.append({"asiento": 2, "codigo": "79111", "cuenta": "Cargas imputables a cuentas de costos y gastos", "debe": 0, "haber": monto, "glosa": glosa_destino})
