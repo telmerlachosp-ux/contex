@@ -21,7 +21,7 @@ def generar_provision(
     19 Estimación de cuentas de cobranza dudosa / 191 Ctas. por cobrar
        comerciales - Terceros
     """
-    glosa_provision = "Provisión de cobranza dudosa usando las cuentas 68711 y 19111"
+    glosa_provision = "Provisión de cobranza dudosa del período"
 
     cuentas = []
 
@@ -29,7 +29,7 @@ def generar_provision(
     cuentas.append({"asiento": 1, "codigo": "19111", "cuenta": "Estimación de cuentas de cobranza dudosa - Facturas por cobrar", "debe": 0, "haber": monto, "glosa": glosa_provision})
 
     destino_info = DESTINOS.get(destino.upper(), DESTINOS["ADMINISTRACION"])
-    glosa_destino = f"Destino de la provisión usando las cuentas {destino_info['codigo']} y 79111"
+    glosa_destino = "Distribución del gasto de provisión por función"
 
     cuentas.append({"asiento": 2, "codigo": destino_info["codigo"], "cuenta": destino_info["nombre"], "debe": monto, "haber": 0, "glosa": glosa_destino})
     cuentas.append({"asiento": 2, "codigo": "79111", "cuenta": "Cargas imputables a cuentas de costos y gastos", "debe": 0, "haber": monto, "glosa": glosa_destino})
