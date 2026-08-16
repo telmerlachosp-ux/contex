@@ -938,6 +938,35 @@ if st.button("RESOLVER PROVISIÓN CON IA"):
 # -------------------------------------------------
 from clasificador_gemini import clasificar_ejercicio
 
+
+def _agrupar_por_asiento(cuentas):
+    """
+    Agrupa una lista plana de cuentas (cada una con "asiento" y
+    "glosa") en bloques por número de asiento, usando la glosa
+    real de cada bloque en vez de una etiqueta genérica.
+    """
+    bloques = []
+    numero_actual = None
+    bloque_actual = None
+
+    for cuenta in cuentas:
+        if cuenta["asiento"] != numero_actual:
+            if bloque_actual is not None:
+                bloques.append(bloque_actual)
+            bloque_actual = {
+                "tipo_asiento": cuenta.get("glosa", f"Asiento {cuenta['asiento']}"),
+                "cuentas": [],
+                "validacion": {}
+            }
+            numero_actual = cuenta["asiento"]
+        bloque_actual["cuentas"].append(cuenta)
+
+    if bloque_actual is not None:
+        bloques.append(bloque_actual)
+
+    return bloques
+
+
 st.divider()
 st.subheader("🎓 Resolver ejercicio contable con IA")
 
@@ -963,9 +992,6 @@ if st.button("RESOLVER EJERCICIO"):
             asientos_finales = []
             datos_generales = {}
 
-            # -------------------------------------------------
-            # COMPRA
-            # -------------------------------------------------
             if tipo_detectado == "COMPRA":
                 with st.spinner("Extrayendo datos..."):
                     datos = extraer_datos_compra(texto_unificado, api_key)
@@ -976,15 +1002,8 @@ if st.button("RESOLVER EJERCICIO"):
                     condicion_pago=datos["condicion_pago"]
                 )
                 datos_generales = datos
-                asientos_finales = [{
-                    "tipo_asiento": f"Asiento {c['asiento']}",
-                    "cuentas": [c],
-                    "validacion": {}
-                } for c in resultado["cuentas"]]
+                asientos_finales = _agrupar_por_asiento(resultado["cuentas"])
 
-            # -------------------------------------------------
-            # VENTA
-            # -------------------------------------------------
             elif tipo_detectado == "VENTA":
                 with st.spinner("Extrayendo datos..."):
                     datos = extraer_datos_venta(texto_unificado, api_key)
@@ -995,15 +1014,8 @@ if st.button("RESOLVER EJERCICIO"):
                     condicion_cobro=datos["condicion_cobro"]
                 )
                 datos_generales = datos
-                asientos_finales = [{
-                    "tipo_asiento": f"Asiento {c['asiento']}",
-                    "cuentas": [c],
-                    "validacion": {}
-                } for c in resultado["cuentas"]]
+                asientos_finales = _agrupar_por_asiento(resultado["cuentas"])
 
-            # -------------------------------------------------
-            # PLANILLA
-            # -------------------------------------------------
             elif tipo_detectado == "PLANILLA":
                 with st.spinner("Extrayendo datos..."):
                     datos = extraer_datos_planilla(texto_unificado, api_key)
@@ -1014,15 +1026,8 @@ if st.button("RESOLVER EJERCICIO"):
                     destino=datos.get("destino", "ADMINISTRACION")
                 )
                 datos_generales = datos
-                asientos_finales = [{
-                    "tipo_asiento": f"Asiento {c['asiento']}",
-                    "cuentas": [c],
-                    "validacion": {}
-                } for c in resultado["cuentas"]]
+                asientos_finales = _agrupar_por_asiento(resultado["cuentas"])
 
-            # -------------------------------------------------
-            # DEPRECIACION
-            # -------------------------------------------------
             elif tipo_detectado == "DEPRECIACION":
                 with st.spinner("Extrayendo datos..."):
                     datos = extraer_datos_depreciacion(texto_unificado, api_key)
@@ -1035,15 +1040,8 @@ if st.button("RESOLVER EJERCICIO"):
                     destino=datos.get("destino", "ADMINISTRACION")
                 )
                 datos_generales = datos
-                asientos_finales = [{
-                    "tipo_asiento": f"Asiento {c['asiento']}",
-                    "cuentas": [c],
-                    "validacion": {}
-                } for c in resultado["cuentas"]]
+                asientos_finales = _agrupar_por_asiento(resultado["cuentas"])
 
-            # -------------------------------------------------
-            # PROVISION
-            # -------------------------------------------------
             elif tipo_detectado == "PROVISION":
                 with st.spinner("Extrayendo datos..."):
                     datos = extraer_datos_provision(texto_unificado, api_key)
@@ -1052,15 +1050,8 @@ if st.button("RESOLVER EJERCICIO"):
                     destino=datos.get("destino", "ADMINISTRACION")
                 )
                 datos_generales = datos
-                asientos_finales = [{
-                    "tipo_asiento": f"Asiento {c['asiento']}",
-                    "cuentas": [c],
-                    "validacion": {}
-                } for c in resultado["cuentas"]]
+                asientos_finales = _agrupar_por_asiento(resultado["cuentas"])
 
-            # -------------------------------------------------
-            # PRESTAMO
-            # -------------------------------------------------
             elif tipo_detectado == "PRESTAMO":
                 with st.spinner("Extrayendo datos..."):
                     datos = extraer_datos_prestamo(texto_unificado, api_key)
@@ -1075,9 +1066,6 @@ if st.button("RESOLVER EJERCICIO"):
                 datos_generales = datos
                 asientos_finales = resultado_prestamo["asientos"]
 
-            # -------------------------------------------------
-            # MOSTRAR RESULTADO (igual para cualquier tipo)
-            # -------------------------------------------------
             st.write("### Datos identificados por la IA")
             st.json(datos_generales)
 
