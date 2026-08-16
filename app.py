@@ -711,3 +711,74 @@ if st.button("RESOLVER PRESTAMO CON IA"):
 
         except Exception as error:
             st.error(f"Ocurrió un error al resolver el préstamo: {error}")
+# -------------------------------------------------
+# PRUEBA DE NUEVOS MOTORES (SIN IA, DATOS FIJOS)
+# -------------------------------------------------
+from generador_planilla import generar_planilla
+from generador_depreciacion import generar_depreciacion
+from generador_provision import generar_provision
+
+st.divider()
+st.subheader("🧪 Prueba de nuevos motores (datos fijos)")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    if st.button("PROBAR PLANILLA"):
+        resultado_planilla = generar_planilla(
+            sueldo_bruto=2000,
+            destino="ADMINISTRACION"
+        )
+        st.write("### Planilla — Sueldo bruto S/ 2,000")
+        for cuenta in resultado_planilla["cuentas"]:
+            st.write(
+                cuenta["asiento"], "|",
+                cuenta["codigo"], "-", cuenta["cuenta"],
+                "| Debe:", cuenta["debe"],
+                "| Haber:", cuenta["haber"]
+            )
+        if resultado_planilla["cuadrado"]:
+            st.success("✅ Cuadrado")
+        else:
+            st.error("❌ NO cuadrado")
+
+with col2:
+    if st.button("PROBAR DEPRECIACIÓN"):
+        resultado_deprec = generar_depreciacion(
+            valor_activo=12000,
+            tipo_activo="MAQUINARIA",
+            vida_util_anios=10,
+            periodo="MENSUAL",
+            destino="ADMINISTRACION"
+        )
+        st.write("### Depreciación — Maquinaria S/ 12,000, vida útil 10 años")
+        for cuenta in resultado_deprec["cuentas"]:
+            st.write(
+                cuenta["asiento"], "|",
+                cuenta["codigo"], "-", cuenta["cuenta"],
+                "| Debe:", cuenta["debe"],
+                "| Haber:", cuenta["haber"]
+            )
+        if resultado_deprec["cuadrado"]:
+            st.success("✅ Cuadrado")
+        else:
+            st.error("❌ NO cuadrado")
+
+with col3:
+    if st.button("PROBAR PROVISIÓN"):
+        resultado_provision = generar_provision(
+            monto=3000,
+            destino="ADMINISTRACION"
+        )
+        st.write("### Provisión — Cobranza dudosa S/ 3,000")
+        for cuenta in resultado_provision["cuentas"]:
+            st.write(
+                cuenta["asiento"], "|",
+                cuenta["codigo"], "-", cuenta["cuenta"],
+                "| Debe:", cuenta["debe"],
+                "| Haber:", cuenta["haber"]
+            )
+        if resultado_provision["cuadrado"]:
+            st.success("✅ Cuadrado")
+        else:
+            st.error("❌ NO cuadrado")
