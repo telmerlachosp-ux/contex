@@ -23,15 +23,22 @@ _PALABRAS_CLAVE = {
 def _clasificar_por_palabras_clave(texto_ejercicio):
     """
     Intenta identificar el tipo de ejercicio usando palabras clave,
-    sin llamar a la IA. Devuelve el tipo si hay una única coincidencia
-    clara, o None si es ambiguo (0 o más de 1 tipo coincide).
+    sin llamar a la IA. Busca cada palabra como PALABRA COMPLETA
+    (con límites de palabra), para que "vende" no dispare dentro
+    de "vendedor", por ejemplo.
+
+    Devuelve el tipo si hay una única coincidencia clara, o None
+    si es ambiguo (0 o más de 1 tipo coincide).
     """
     texto = texto_ejercicio.lower()
 
     tipos_encontrados = []
     for tipo, palabras in _PALABRAS_CLAVE.items():
-        if any(palabra in texto for palabra in palabras):
-            tipos_encontrados.append(tipo)
+        for palabra in palabras:
+            patron = r"\b" + re.escape(palabra) + r"\b"
+            if re.search(patron, texto):
+                tipos_encontrados.append(tipo)
+                break
 
     if len(tipos_encontrados) == 1:
         return tipos_encontrados[0]
