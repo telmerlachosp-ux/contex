@@ -782,3 +782,152 @@ with col3:
             st.success("✅ Cuadrado")
         else:
             st.error("❌ NO cuadrado")
+
+
+# -------------------------------------------------
+# RESOLVER PLANILLA CON IA (PRUEBA)
+# -------------------------------------------------
+from interpretador_gemini import extraer_datos_planilla, extraer_datos_depreciacion, extraer_datos_provision
+
+st.divider()
+st.subheader("🧾 Resolver planilla con IA")
+
+texto_planilla = st.text_area(
+    "Pega aquí el enunciado del ejercicio de planilla:",
+    height=200,
+    key="texto_planilla"
+)
+
+if st.button("RESOLVER PLANILLA CON IA"):
+    if texto_planilla.strip() == "":
+        st.warning("Por favor pega un ejercicio antes de continuar.")
+    else:
+        try:
+            api_key = st.secrets["GEMINI_API_KEY"]
+
+            with st.spinner("La IA está leyendo el ejercicio..."):
+                datos_planilla_ia = extraer_datos_planilla(texto_planilla, api_key)
+
+            st.write("### Datos identificados por la IA")
+            st.json(datos_planilla_ia)
+
+            resultado_planilla_ia = generar_planilla(
+                sueldo_bruto=datos_planilla_ia["sueldo_bruto"],
+                incluir_pago_trabajador=datos_planilla_ia.get("incluir_pago_trabajador", True),
+                incluir_pago_sunat=datos_planilla_ia.get("incluir_pago_sunat", True),
+                destino=datos_planilla_ia.get("destino", "ADMINISTRACION")
+            )
+
+            for cuenta in resultado_planilla_ia["cuentas"]:
+                st.write(
+                    cuenta["asiento"], "|",
+                    cuenta["codigo"], "-", cuenta["cuenta"],
+                    "| Debe:", cuenta["debe"],
+                    "| Haber:", cuenta["haber"]
+                )
+
+            if resultado_planilla_ia["cuadrado"]:
+                st.success("✅ El asiento está cuadrado.")
+            else:
+                st.error("❌ El asiento NO está cuadrado.")
+
+        except Exception as error:
+            st.error(f"Ocurrió un error al resolver la planilla: {error}")
+
+
+# -------------------------------------------------
+# RESOLVER DEPRECIACIÓN CON IA (PRUEBA)
+# -------------------------------------------------
+st.divider()
+st.subheader("🏭 Resolver depreciación con IA")
+
+texto_depreciacion = st.text_area(
+    "Pega aquí el enunciado del ejercicio de depreciación:",
+    height=200,
+    key="texto_depreciacion"
+)
+
+if st.button("RESOLVER DEPRECIACIÓN CON IA"):
+    if texto_depreciacion.strip() == "":
+        st.warning("Por favor pega un ejercicio antes de continuar.")
+    else:
+        try:
+            api_key = st.secrets["GEMINI_API_KEY"]
+
+            with st.spinner("La IA está leyendo el ejercicio..."):
+                datos_deprec_ia = extraer_datos_depreciacion(texto_depreciacion, api_key)
+
+            st.write("### Datos identificados por la IA")
+            st.json(datos_deprec_ia)
+
+            resultado_deprec_ia = generar_depreciacion(
+                valor_activo=datos_deprec_ia["valor_activo"],
+                tipo_activo=datos_deprec_ia.get("tipo_activo", "MAQUINARIA"),
+                vida_util_anios=datos_deprec_ia.get("vida_util_anios"),
+                tasa_anual=datos_deprec_ia.get("tasa_anual"),
+                periodo=datos_deprec_ia.get("periodo", "MENSUAL"),
+                destino=datos_deprec_ia.get("destino", "ADMINISTRACION")
+            )
+
+            for cuenta in resultado_deprec_ia["cuentas"]:
+                st.write(
+                    cuenta["asiento"], "|",
+                    cuenta["codigo"], "-", cuenta["cuenta"],
+                    "| Debe:", cuenta["debe"],
+                    "| Haber:", cuenta["haber"]
+                )
+
+            if resultado_deprec_ia["cuadrado"]:
+                st.success("✅ El asiento está cuadrado.")
+            else:
+                st.error("❌ El asiento NO está cuadrado.")
+
+        except Exception as error:
+            st.error(f"Ocurrió un error al resolver la depreciación: {error}")
+
+
+# -------------------------------------------------
+# RESOLVER PROVISIÓN CON IA (PRUEBA)
+# -------------------------------------------------
+st.divider()
+st.subheader("📉 Resolver provisión de cobranza dudosa con IA")
+
+texto_provision = st.text_area(
+    "Pega aquí el enunciado del ejercicio de provisión:",
+    height=200,
+    key="texto_provision"
+)
+
+if st.button("RESOLVER PROVISIÓN CON IA"):
+    if texto_provision.strip() == "":
+        st.warning("Por favor pega un ejercicio antes de continuar.")
+    else:
+        try:
+            api_key = st.secrets["GEMINI_API_KEY"]
+
+            with st.spinner("La IA está leyendo el ejercicio..."):
+                datos_provision_ia = extraer_datos_provision(texto_provision, api_key)
+
+            st.write("### Datos identificados por la IA")
+            st.json(datos_provision_ia)
+
+            resultado_provision_ia = generar_provision(
+                monto=datos_provision_ia["monto"],
+                destino=datos_provision_ia.get("destino", "ADMINISTRACION")
+            )
+
+            for cuenta in resultado_provision_ia["cuentas"]:
+                st.write(
+                    cuenta["asiento"], "|",
+                    cuenta["codigo"], "-", cuenta["cuenta"],
+                    "| Debe:", cuenta["debe"],
+                    "| Haber:", cuenta["haber"]
+                )
+
+            if resultado_provision_ia["cuadrado"]:
+                st.success("✅ El asiento está cuadrado.")
+            else:
+                st.error("❌ El asiento NO está cuadrado.")
+
+        except Exception as error:
+            st.error(f"Ocurrió un error al resolver la provisión: {error}")
