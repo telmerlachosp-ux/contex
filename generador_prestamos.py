@@ -623,12 +623,7 @@ def generar_prestamo_desde_enunciado(
             "Use 'ADELANTADO' o 'VENCIDO'."
         )
 
-    return {
-        "deteccion": deteccion,
-        "asientos": asientos,
-        "requiere_aclaracion": False
-    }
-
+   return {
         "deteccion": deteccion,
         "asientos": asientos,
         "requiere_aclaracion": False
