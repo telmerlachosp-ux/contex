@@ -932,7 +932,6 @@ if st.button("RESOLVER PROVISIÓN CON IA"):
         except Exception as error:
             st.error(f"Ocurrió un error al resolver la provisión: {error}")
 
-
 # -------------------------------------------------
 # RESOLVER CUALQUIER EJERCICIO CON IA (UNIFICADO)
 # -------------------------------------------------
@@ -967,8 +966,20 @@ def _agrupar_por_asiento(cuentas):
     return bloques
 
 
+if "historial_asientos" not in st.session_state:
+    st.session_state.historial_asientos = []
+
+if "historial_resumen" not in st.session_state:
+    st.session_state.historial_resumen = []
+
 st.divider()
 st.subheader("🎓 Resolver ejercicio contable con IA")
+
+if st.session_state.historial_asientos:
+    st.caption(
+        f"📋 Llevas {len(st.session_state.historial_resumen)} ejercicio(s) "
+        f"resuelto(s) en esta sesión. El Excel incluirá todos."
+    )
 
 texto_unificado = st.text_area(
     "Pega aquí el enunciado del ejercicio (compra, venta, planilla, "
@@ -977,7 +988,18 @@ texto_unificado = st.text_area(
     key="texto_unificado"
 )
 
-if st.button("RESOLVER EJERCICIO"):
+col_resolver, col_limpiar = st.columns([3, 1])
+
+with col_resolver:
+    boton_resolver = st.button("RESOLVER EJERCICIO")
+
+with col_limpiar:
+    if st.button("🗑️ Limpiar historial"):
+        st.session_state.historial_asientos = []
+        st.session_state.historial_resumen = []
+        st.rerun()
+
+if boton_resolver:
     if texto_unificado.strip() == "":
         st.warning("Por favor pega un ejercicio antes de continuar.")
     else:
@@ -1086,21 +1108,45 @@ if st.button("RESOLVER EJERCICIO"):
             diferencia_total = round(debe_total - haber_total, 2)
 
             if diferencia_total == 0:
-                st.success("✅ Todos los asientos están cuadrados.")
+                st.success("✅ Este ejercicio está cuadrado.")
             else:
-                st.error(f"❌ Los asientos NO cuadran. Diferencia: {diferencia_total}")
+                st.error(f"❌ Este ejercicio NO cuadra. Diferencia: {diferencia_total}")
 
-            archivo_excel_unificado = generar_excel_multiples_asientos(
-                datos_generales, asientos_finales
-            )
+            # -------------------------------------------------
+            # ACUMULAR EN EL HISTORIAL DE LA SESIÓN
+            # -------------------------------------------------
+            numero_ejercicio = len(st.session_state.historial_resumen) + 1
 
-            st.download_button(
-                label="📥 Descargar Excel",
-                data=archivo_excel_unificado,
-                file_name="ejercicio_resuelto.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="descarga_unificado"
+            st.session_state.historial_asientos.extend(asientos_finales)
+            st.session_state.historial_resumen.append({
+                f"Ejercicio {numero_ejercicio} - Tipo": tipo_detectado,
+                f"Ejercicio {numero_ejercicio} - Datos": str(datos_generales)
+            })
+
+            st.success(
+                f"Ejercicio agregado al historial (van "
+                f"{len(st.session_state.historial_resumen)} en total)."
             )
 
         except Exception as error:
             st.error(f"Ocurrió un error al resolver el ejercicio: {error}")
+
+# -------------------------------------------------
+# DESCARGA DEL EXCEL ACUMULADO (TODOS LOS EJERCICIOS)
+# -------------------------------------------------
+if st.session_state.historial_asientos:
+    resumen_acumulado = {}
+    for entrada in st.session_state.historial_resumen:
+        resumen_acumulado.update(entrada)
+
+    archivo_excel_unificado = generar_excel_multiples_asientos(
+        resumen_acumulado, st.session_state.historial_asientos
+    )
+
+    st.download_button(
+        label=f"📥 Descargar Excel completo ({len(st.session_state.historial_resumen)} ejercicio(s))",
+        data=archivo_excel_unificado,
+        file_name="ejercicios_resueltos.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="descarga_unificado"
+    )
