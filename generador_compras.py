@@ -13,8 +13,8 @@ def generar_compra(
     Asiento 1 - Por naturaleza (compra)
     Asiento 2 - Por destino (ingreso a almacén)
     """
-    glosa_compra = "Compra de mercadería usando las cuentas 60111, 40111 y 42121"
-    glosa_almacen = "Ingreso de mercadería al almacén usando las cuentas 20111 y 61111"
+    glosa_compra = "Compra de mercadería según factura"
+    glosa_almacen = "Ingreso de mercadería al almacén"
 
     cuentas = [
         {"asiento": 1, "codigo": "60111", "cuenta": "Mercaderías", "debe": base_imponible, "haber": 0, "glosa": glosa_compra},
