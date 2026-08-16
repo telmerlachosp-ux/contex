@@ -10,16 +10,48 @@ TIPOS_VALIDOS = {
     "PRESTAMO"
 }
 
+_PALABRAS_CLAVE = {
+    "COMPRA": ["compra de", "compró", "adquiere", "adquirió", "adquisición"],
+    "VENTA": ["vende", "venta de", "vendió"],
+    "PLANILLA": ["sueldo", "planilla", "remuneracion", "remuneración", "trabajador", "empleado"],
+    "DEPRECIACION": ["deprecia"],
+    "PROVISION": ["cobranza dudosa", "incobrable", "estimación de cobranza"],
+    "PRESTAMO": ["préstamo", "prestamo", "financiamiento", "entidad financiera"],
+}
+
+
+def _clasificar_por_palabras_clave(texto_ejercicio):
+    """
+    Intenta identificar el tipo de ejercicio usando palabras clave,
+    sin llamar a la IA. Devuelve el tipo si hay una única coincidencia
+    clara, o None si es ambiguo (0 o más de 1 tipo coincide).
+    """
+    texto = texto_ejercicio.lower()
+
+    tipos_encontrados = []
+    for tipo, palabras in _PALABRAS_CLAVE.items():
+        if any(palabra in texto for palabra in palabras):
+            tipos_encontrados.append(tipo)
+
+    if len(tipos_encontrados) == 1:
+        return tipos_encontrados[0]
+
+    return None
+
 
 def clasificar_ejercicio(texto_ejercicio, api_key):
     """
-    Lee el enunciado de un ejercicio contable y determina
-    qué tipo de operación es, para poder mandarlo al motor
-    correcto de forma automática.
+    Determina qué tipo de operación es el ejercicio.
+    Primero intenta con palabras clave (rápido y confiable para
+    ejercicios básicos); si es ambiguo, le pregunta a Gemini.
 
     Devuelve un string: "COMPRA", "VENTA", "PLANILLA",
     "DEPRECIACION", "PROVISION" o "PRESTAMO".
     """
+    tipo_por_palabras = _clasificar_por_palabras_clave(texto_ejercicio)
+    if tipo_por_palabras:
+        return tipo_por_palabras
+
     cliente = genai.Client(api_key=api_key)
 
     prompt = f"""
