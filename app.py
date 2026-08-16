@@ -71,11 +71,8 @@ def _extraer_texto_imagen(archivo, api_key):
             },
             {
                 "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": media_type,
-                    "data": imagen_base64
-                }
+                "mime_type": media_type,
+                "data": imagen_base64
             }
         ]
     )
