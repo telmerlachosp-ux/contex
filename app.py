@@ -931,10 +931,10 @@ if st.button("RESOLVER PROVISIÓN CON IA"):
 
         except Exception as error:
             st.error(f"Ocurrió un error al resolver la provisión: {error}")
-
 # -------------------------------------------------
 # RESOLVER CUALQUIER EJERCICIO CON IA (UNIFICADO)
 # -------------------------------------------------
+import re
 from clasificador_gemini import clasificar_ejercicio
 
 
@@ -966,6 +966,94 @@ def _agrupar_por_asiento(cuentas):
     return bloques
 
 
+def _dividir_ejercicios(texto):
+    """
+    Divide un texto que puede traer VARIOS ejercicios numerados
+    (1. ... 2. ... 3. ...) en una lista de ejercicios individuales.
+    Si no encuentra numeración, devuelve el texto completo como
+    un único ejercicio.
+    """
+    partes = re.split(r"(?m)^\s*\d+[\.\)]\s*", texto)
+    ejercicios = [parte.strip() for parte in partes if parte.strip()]
+
+    if not ejercicios:
+        return [texto.strip()]
+
+    return ejercicios
+
+
+def _resolver_un_ejercicio(texto_ejercicio, api_key):
+    """
+    Clasifica y resuelve UN solo ejercicio. Devuelve
+    (tipo_detectado, datos_generales, asientos_finales).
+    """
+    tipo_detectado = clasificar_ejercicio(texto_ejercicio, api_key)
+
+    if tipo_detectado == "COMPRA":
+        datos = extraer_datos_compra(texto_ejercicio, api_key)
+        resultado = generar_compra(
+            base_imponible=datos["base_imponible"],
+            igv=datos["igv"],
+            total=datos["total"],
+            condicion_pago=datos["condicion_pago"]
+        )
+        return tipo_detectado, datos, _agrupar_por_asiento(resultado["cuentas"])
+
+    if tipo_detectado == "VENTA":
+        datos = extraer_datos_venta(texto_ejercicio, api_key)
+        resultado = generar_venta(
+            base_imponible=datos["base_imponible"],
+            igv=datos["igv"],
+            total=datos["total"],
+            condicion_cobro=datos["condicion_cobro"]
+        )
+        return tipo_detectado, datos, _agrupar_por_asiento(resultado["cuentas"])
+
+    if tipo_detectado == "PLANILLA":
+        datos = extraer_datos_planilla(texto_ejercicio, api_key)
+        resultado = generar_planilla(
+            sueldo_bruto=datos["sueldo_bruto"],
+            incluir_pago_trabajador=datos.get("incluir_pago_trabajador", True),
+            incluir_pago_sunat=datos.get("incluir_pago_sunat", True),
+            destino=datos.get("destino", "ADMINISTRACION")
+        )
+        return tipo_detectado, datos, _agrupar_por_asiento(resultado["cuentas"])
+
+    if tipo_detectado == "DEPRECIACION":
+        datos = extraer_datos_depreciacion(texto_ejercicio, api_key)
+        resultado = generar_depreciacion(
+            valor_activo=datos["valor_activo"],
+            tipo_activo=datos.get("tipo_activo", "MAQUINARIA"),
+            vida_util_anios=datos.get("vida_util_anios"),
+            tasa_anual=datos.get("tasa_anual"),
+            periodo=datos.get("periodo", "MENSUAL"),
+            destino=datos.get("destino", "ADMINISTRACION")
+        )
+        return tipo_detectado, datos, _agrupar_por_asiento(resultado["cuentas"])
+
+    if tipo_detectado == "PROVISION":
+        datos = extraer_datos_provision(texto_ejercicio, api_key)
+        resultado = generar_provision(
+            monto=datos["monto"],
+            destino=datos.get("destino", "ADMINISTRACION")
+        )
+        return tipo_detectado, datos, _agrupar_por_asiento(resultado["cuentas"])
+
+    if tipo_detectado == "PRESTAMO":
+        datos = extraer_datos_prestamo(texto_ejercicio, api_key)
+        resultado_prestamo = generar_prestamo_desde_enunciado(
+            texto_enunciado=texto_ejercicio,
+            monto_prestamo=datos["monto_prestamo"],
+            monto_interes=datos["monto_interes"],
+            entidad_financiera=datos.get("entidad_financiera", ""),
+            medio_pago=datos.get("medio_pago", "TRANSFERENCIA"),
+            modalidad_interes=datos.get("modalidad_interes")
+        )
+        return tipo_detectado, datos, resultado_prestamo["asientos"]
+
+    raise ValueError(f"Tipo de ejercicio no reconocido: {tipo_detectado}")
+
+
 if "historial_asientos" not in st.session_state:
     st.session_state.historial_asientos = []
 
@@ -973,7 +1061,7 @@ if "historial_resumen" not in st.session_state:
     st.session_state.historial_resumen = []
 
 st.divider()
-st.subheader("🎓 Resolver ejercicio contable con IA")
+st.subheader("🎓 Resolver ejercicio(s) contable(s) con IA")
 
 if st.session_state.historial_asientos:
     st.caption(
@@ -982,8 +1070,8 @@ if st.session_state.historial_asientos:
     )
 
 texto_unificado = st.text_area(
-    "Pega aquí el enunciado del ejercicio (compra, venta, planilla, "
-    "depreciación, provisión o préstamo):",
+    "Pega aquí uno o VARIOS ejercicios (numéralos como 1. 2. 3. si son "
+    "varios): compra, venta, planilla, depreciación, provisión o préstamo.",
     height=220,
     key="texto_unificado"
 )
@@ -991,7 +1079,7 @@ texto_unificado = st.text_area(
 col_resolver, col_limpiar = st.columns([3, 1])
 
 with col_resolver:
-    boton_resolver = st.button("RESOLVER EJERCICIO")
+    boton_resolver = st.button("RESOLVER EJERCICIO(S)")
 
 with col_limpiar:
     if st.button("🗑️ Limpiar historial"):
@@ -1001,135 +1089,60 @@ with col_limpiar:
 
 if boton_resolver:
     if texto_unificado.strip() == "":
-        st.warning("Por favor pega un ejercicio antes de continuar.")
+        st.warning("Por favor pega al menos un ejercicio antes de continuar.")
     else:
-        try:
-            api_key = st.secrets["GEMINI_API_KEY"]
+        api_key = st.secrets["GEMINI_API_KEY"]
+        lista_ejercicios = _dividir_ejercicios(texto_unificado)
 
-            with st.spinner("Identificando el tipo de ejercicio..."):
-                tipo_detectado = clasificar_ejercicio(texto_unificado, api_key)
+        st.caption(f"Se detectaron {len(lista_ejercicios)} ejercicio(s) en el texto pegado.")
 
-            st.info(f"Tipo de ejercicio detectado: **{tipo_detectado}**")
+        for indice_ejercicio, texto_ejercicio in enumerate(lista_ejercicios, start=1):
+            st.markdown(f"---\n#### Ejercicio {indice_ejercicio} de {len(lista_ejercicios)}")
 
-            asientos_finales = []
-            datos_generales = {}
-
-            if tipo_detectado == "COMPRA":
-                with st.spinner("Extrayendo datos..."):
-                    datos = extraer_datos_compra(texto_unificado, api_key)
-                resultado = generar_compra(
-                    base_imponible=datos["base_imponible"],
-                    igv=datos["igv"],
-                    total=datos["total"],
-                    condicion_pago=datos["condicion_pago"]
-                )
-                datos_generales = datos
-                asientos_finales = _agrupar_por_asiento(resultado["cuentas"])
-
-            elif tipo_detectado == "VENTA":
-                with st.spinner("Extrayendo datos..."):
-                    datos = extraer_datos_venta(texto_unificado, api_key)
-                resultado = generar_venta(
-                    base_imponible=datos["base_imponible"],
-                    igv=datos["igv"],
-                    total=datos["total"],
-                    condicion_cobro=datos["condicion_cobro"]
-                )
-                datos_generales = datos
-                asientos_finales = _agrupar_por_asiento(resultado["cuentas"])
-
-            elif tipo_detectado == "PLANILLA":
-                with st.spinner("Extrayendo datos..."):
-                    datos = extraer_datos_planilla(texto_unificado, api_key)
-                resultado = generar_planilla(
-                    sueldo_bruto=datos["sueldo_bruto"],
-                    incluir_pago_trabajador=datos.get("incluir_pago_trabajador", True),
-                    incluir_pago_sunat=datos.get("incluir_pago_sunat", True),
-                    destino=datos.get("destino", "ADMINISTRACION")
-                )
-                datos_generales = datos
-                asientos_finales = _agrupar_por_asiento(resultado["cuentas"])
-
-            elif tipo_detectado == "DEPRECIACION":
-                with st.spinner("Extrayendo datos..."):
-                    datos = extraer_datos_depreciacion(texto_unificado, api_key)
-                resultado = generar_depreciacion(
-                    valor_activo=datos["valor_activo"],
-                    tipo_activo=datos.get("tipo_activo", "MAQUINARIA"),
-                    vida_util_anios=datos.get("vida_util_anios"),
-                    tasa_anual=datos.get("tasa_anual"),
-                    periodo=datos.get("periodo", "MENSUAL"),
-                    destino=datos.get("destino", "ADMINISTRACION")
-                )
-                datos_generales = datos
-                asientos_finales = _agrupar_por_asiento(resultado["cuentas"])
-
-            elif tipo_detectado == "PROVISION":
-                with st.spinner("Extrayendo datos..."):
-                    datos = extraer_datos_provision(texto_unificado, api_key)
-                resultado = generar_provision(
-                    monto=datos["monto"],
-                    destino=datos.get("destino", "ADMINISTRACION")
-                )
-                datos_generales = datos
-                asientos_finales = _agrupar_por_asiento(resultado["cuentas"])
-
-            elif tipo_detectado == "PRESTAMO":
-                with st.spinner("Extrayendo datos..."):
-                    datos = extraer_datos_prestamo(texto_unificado, api_key)
-                resultado_prestamo = generar_prestamo_desde_enunciado(
-                    texto_enunciado=texto_unificado,
-                    monto_prestamo=datos["monto_prestamo"],
-                    monto_interes=datos["monto_interes"],
-                    entidad_financiera=datos.get("entidad_financiera", ""),
-                    medio_pago=datos.get("medio_pago", "TRANSFERENCIA"),
-                    modalidad_interes=datos.get("modalidad_interes")
-                )
-                datos_generales = datos
-                asientos_finales = resultado_prestamo["asientos"]
-
-            st.write("### Datos identificados por la IA")
-            st.json(datos_generales)
-
-            debe_total = 0
-            haber_total = 0
-
-            for bloque in asientos_finales:
-                st.write(f"### {bloque['tipo_asiento']}")
-                for cuenta in bloque["cuentas"]:
-                    st.write(
-                        cuenta["codigo"], "-", cuenta["cuenta"],
-                        "| Debe:", cuenta["debe"],
-                        "| Haber:", cuenta["haber"]
+            try:
+                with st.spinner(f"Resolviendo ejercicio {indice_ejercicio}..."):
+                    tipo_detectado, datos_generales, asientos_finales = _resolver_un_ejercicio(
+                        texto_ejercicio, api_key
                     )
-                    debe_total += cuenta["debe"]
-                    haber_total += cuenta["haber"]
 
-            diferencia_total = round(debe_total - haber_total, 2)
+                st.info(f"Tipo detectado: **{tipo_detectado}**")
+                st.json(datos_generales)
 
-            if diferencia_total == 0:
-                st.success("✅ Este ejercicio está cuadrado.")
-            else:
-                st.error(f"❌ Este ejercicio NO cuadra. Diferencia: {diferencia_total}")
+                debe_total = 0
+                haber_total = 0
 
-            # -------------------------------------------------
-            # ACUMULAR EN EL HISTORIAL DE LA SESIÓN
-            # -------------------------------------------------
-            numero_ejercicio = len(st.session_state.historial_resumen) + 1
+                for bloque in asientos_finales:
+                    st.write(f"**{bloque['tipo_asiento']}**")
+                    for cuenta in bloque["cuentas"]:
+                        st.write(
+                            cuenta["codigo"], "-", cuenta["cuenta"],
+                            "| Debe:", cuenta["debe"],
+                            "| Haber:", cuenta["haber"]
+                        )
+                        debe_total += cuenta["debe"]
+                        haber_total += cuenta["haber"]
 
-            st.session_state.historial_asientos.extend(asientos_finales)
-            st.session_state.historial_resumen.append({
-                f"Ejercicio {numero_ejercicio} - Tipo": tipo_detectado,
-                f"Ejercicio {numero_ejercicio} - Datos": str(datos_generales)
-            })
+                diferencia_total = round(debe_total - haber_total, 2)
 
-            st.success(
-                f"Ejercicio agregado al historial (van "
-                f"{len(st.session_state.historial_resumen)} en total)."
-            )
+                if diferencia_total == 0:
+                    st.success("✅ Este ejercicio está cuadrado.")
+                else:
+                    st.error(f"❌ Este ejercicio NO cuadra. Diferencia: {diferencia_total}")
 
-        except Exception as error:
-            st.error(f"Ocurrió un error al resolver el ejercicio: {error}")
+                numero_global = len(st.session_state.historial_resumen) + 1
+                st.session_state.historial_asientos.extend(asientos_finales)
+                st.session_state.historial_resumen.append({
+                    f"Ejercicio {numero_global} - Tipo": tipo_detectado,
+                    f"Ejercicio {numero_global} - Datos": str(datos_generales)
+                })
+
+            except Exception as error:
+                st.error(f"Ocurrió un error al resolver el ejercicio {indice_ejercicio}: {error}")
+
+        st.success(
+            f"Listo. Van {len(st.session_state.historial_resumen)} ejercicio(s) "
+            f"en el historial de esta sesión."
+        )
 
 # -------------------------------------------------
 # DESCARGA DEL EXCEL ACUMULADO (TODOS LOS EJERCICIOS)
@@ -1146,6 +1159,10 @@ if st.session_state.historial_asientos:
     st.download_button(
         label=f"📥 Descargar Excel completo ({len(st.session_state.historial_resumen)} ejercicio(s))",
         data=archivo_excel_unificado,
+        file_name="ejercicios_resueltos.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="descarga_unificado"
+    )
         file_name="ejercicios_resueltos.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="descarga_unificado"
