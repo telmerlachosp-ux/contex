@@ -262,7 +262,7 @@ def _es_error_de_limite(error):
     return "429" in texto_error or "too_many_requests" in texto_error or "quota" in texto_error.lower()
 
 
-def _resolver_con_reintento(texto_ejercicio, api_key, max_intentos=3):
+def _resolver_con_reintento(texto_ejercicio, api_key, max_intentos=5):
     """
     Igual que _resolver_un_ejercicio, pero si la API responde que
     se alcanzó el límite de solicitudes (error 429), espera el
@@ -353,7 +353,7 @@ if archivo_subido is not None:
                 except Exception as error:
                     st.error(f"Ocurrió un error al resolver el ejercicio {indice_ejercicio}: {error}")
 
-                time.sleep(1.5)
+                time.sleep(5)
 
             if historial_asientos:
                 resumen_acumulado = {}
