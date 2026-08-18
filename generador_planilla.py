@@ -13,15 +13,17 @@ def generar_planilla(
     sueldo_bruto,
     incluir_pago_trabajador=True,
     incluir_pago_sunat=True,
-    destino="ADMINISTRACION"
+    porcentaje_administracion=100
 ):
     """
     Genera los asientos contables de una planilla de sueldos:
     Asiento 1 - Provisión de la planilla
     Asiento 2 - Pago del neto al trabajador (opcional)
     Asiento 3 - Pago de aportes a SUNAT (ONP + Essalud) (opcional)
-    Asiento 4 - Destino: distribución del gasto por función
-                (ADMINISTRACION -> 94211, VENTAS -> 95211)
+    Asiento 4 - Destino: distribución del gasto por función, según
+                el porcentaje de administración indicado (0-100).
+                El resto va a ventas. Si es 100 o 0, se genera una
+                sola línea; si es intermedio, se reparte en dos.
     """
     onp = round(sueldo_bruto * TASA_ONP, 2)
     essalud = round(sueldo_bruto * TASA_ESSALUD, 2)
@@ -49,11 +51,17 @@ def generar_planilla(
         cuentas.append({"asiento": 3, "codigo": "40311", "cuenta": "Essalud por pagar", "debe": essalud, "haber": 0, "glosa": glosa_pago_sunat})
         cuentas.append({"asiento": 3, "codigo": "10111", "cuenta": "Caja", "debe": 0, "haber": total_sunat, "glosa": glosa_pago_sunat})
 
-    destino_info = DESTINOS.get(destino.upper(), DESTINOS["ADMINISTRACION"])
     glosa_destino = "Distribución del gasto de planilla por función"
     gasto_total = round(sueldo_bruto + essalud, 2)
+    porcentaje_admin = max(0, min(100, porcentaje_administracion))
+    monto_admin = round(gasto_total * porcentaje_admin / 100, 2)
+    monto_ventas = round(gasto_total - monto_admin, 2)
 
-    cuentas.append({"asiento": 4, "codigo": destino_info["codigo"], "cuenta": destino_info["nombre"], "debe": gasto_total, "haber": 0, "glosa": glosa_destino})
+    if monto_admin > 0:
+        cuentas.append({"asiento": 4, "codigo": DESTINOS["ADMINISTRACION"]["codigo"], "cuenta": DESTINOS["ADMINISTRACION"]["nombre"], "debe": monto_admin, "haber": 0, "glosa": glosa_destino})
+    if monto_ventas > 0:
+        cuentas.append({"asiento": 4, "codigo": DESTINOS["VENTAS"]["codigo"], "cuenta": DESTINOS["VENTAS"]["nombre"], "debe": monto_ventas, "haber": 0, "glosa": glosa_destino})
+
     cuentas.append({"asiento": 4, "codigo": "79111", "cuenta": "Cargas imputables a cuentas de costos y gastos", "debe": 0, "haber": gasto_total, "glosa": glosa_destino})
 
     return crear_asiento(cuentas)
