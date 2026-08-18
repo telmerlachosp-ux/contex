@@ -44,7 +44,6 @@ Ejercicio:
 
     datos = json.loads(texto_limpio)
 
-    return datos
 def extraer_datos_venta(texto_ejercicio, api_key):
     """
     Recibe el texto de un ejercicio de venta y le pide a Gemini
@@ -64,11 +63,17 @@ El formato exacto debe ser:
   "base_imponible": numero,
   "igv": numero,
   "total": numero,
-  "condicion_cobro": "CREDITO" o "CONTADO"
+  "condicion_cobro": "CREDITO" o "CONTADO",
+  "medio_pago": "EFECTIVO" o "TRANSFERENCIA"
 }}
 
-Si el ejercicio no da el IGV directamente, calcúlalo con 18% sobre la base.
-Si no da el total, calcúlalo sumando base + igv.
+Reglas:
+- Si el ejercicio no da el IGV directamente, calcúlalo con 18% sobre la base.
+- Si no da el total, calcúlalo sumando base + igv.
+- "medio_pago" solo importa si condicion_cobro es "CONTADO": usa
+  "EFECTIVO" si se pagó en efectivo/caja, o "TRANSFERENCIA" si fue
+  transferencia, depósito, cheque o tarjeta. Si es "CREDITO" o no
+  se especifica, usa "EFECTIVO" por defecto.
 
 Ejercicio:
 \"\"\"{texto_ejercicio}\"\"\"
@@ -85,6 +90,7 @@ Ejercicio:
     datos = json.loads(texto_limpio)
 
     return datos
+
 def extraer_datos_prestamo(texto_ejercicio, api_key):
     """
     Recibe el texto de un ejercicio de préstamo financiero y le pide
