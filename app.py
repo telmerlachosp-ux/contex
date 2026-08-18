@@ -21,7 +21,23 @@ from generador_ventas import generar_venta
 from generador_planilla import generar_planilla
 from generador_depreciacion import generar_depreciacion
 from generador_provision import generar_provision
-from generador_prestamos import generar_prestamo_desde_enunciado
+from generador_prestamos import generar_prestamo_desde_enunciado, generar_pago_prestamo
+from generador_apertura import generar_apertura
+from generador_apertura_bancaria import generar_apertura_bancaria
+from generador_ingreso_almacen import generar_ingreso_almacen
+from generador_canje_letra import generar_canje_letra
+from generador_cobro import generar_cobro
+from generador_pago import generar_pago
+from generador_inversiones import generar_inversion_financiera
+from generador_servicios import generar_servicio
+from generador_destino_gasto import generar_destino_gasto
+from generador_tributos import generar_tributo_municipal, generar_pago_tributo
+from generador_honorarios import generar_honorarios, generar_pago_honorarios
+from generador_costo_ventas import generar_costo_ventas
+from generador_consumo_suministros import generar_consumo_suministros
+from generador_terrenos import generar_compra_terreno
+from generador_reposicion_fondo_fijo import generar_reposicion_fondo_fijo
+from generador_pago_compras import generar_pago_compra
 from generador_excel import generar_excel_multiples_asientos
 
 
@@ -144,6 +160,22 @@ def _agrupar_por_asiento(cuentas):
     return bloques
 
 
+def _normalizar_asiento_simple(resultado, glosa="ASIENTO GENERADO"):
+    """Adapta motores simples (crear_asiento) al formato que usa CONTEX."""
+    cuentas = resultado.get("cuentas", [])
+    normalizadas = []
+    for cuenta in cuentas:
+        normalizadas.append({
+            "asiento": 1,
+            "glosa": glosa,
+            "codigo": cuenta.get("codigo", ""),
+            "cuenta": cuenta.get("cuenta", cuenta.get("denominacion", "")),
+            "debe": float(cuenta.get("debe", 0) or 0),
+            "haber": float(cuenta.get("haber", 0) or 0),
+        })
+    return _agrupar_por_asiento(normalizadas)
+
+
 def _validar_datos_no_cero(datos, campos_requeridos):
     """
     Revisa que cada campo numérico requerido exista en 'datos' y sea
@@ -232,16 +264,22 @@ def _resolver_un_ejercicio(texto_ejercicio, api_key, politica_destino=""):
 
     if tipo_detectado == "PRESTAMO":
         datos = extraer_datos_prestamo(texto_ejercicio, api_key)
-        _validar_datos_no_cero(datos, ["monto_prestamo", "monto_interes"])
+        _validar_datos_no_cero(datos, ["monto_prestamo"])
         resultado_prestamo = generar_prestamo_desde_enunciado(
-            texto_enunciado=texto_ejercicio,
-            monto_prestamo=datos["monto_prestamo"],
-            monto_interes=datos["monto_interes"],
-            entidad_financiera=datos.get("entidad_financiera", ""),
-            medio_pago=datos.get("medio_pago", "TRANSFERENCIA"),
-            modalidad_interes=datos.get("modalidad_interes")
+            monto=datos["monto_prestamo"]
         )
-        return tipo_detectado, datos, resultado_prestamo["asientos"]
+        asientos = _normalizar_asiento_simple(
+            resultado_prestamo,
+            "REGISTRO DEL PRÉSTAMO"
+        )
+        monto_interes = float(datos.get("monto_interes", 0) or 0)
+        if monto_interes > 0:
+            pago = generar_pago_prestamo(
+                capital=float(datos["monto_prestamo"]),
+                intereses=monto_interes
+            )
+            asientos.extend(_normalizar_asiento_simple(pago, "PAGO DE PRÉSTAMO E INTERESES"))
+        return tipo_detectado, datos, asientos
 
     raise ValueError(f"Tipo de ejercicio no reconocido: {tipo_detectado}")
 
