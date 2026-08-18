@@ -20,7 +20,7 @@ def generar_depreciacion(
     vida_util_anios=None,
     tasa_anual=None,
     periodo="MENSUAL",
-    destino="ADMINISTRACION"
+    porcentaje_administracion=100
 ):
     """
     Genera los asientos contables de la depreciación de un activo fijo:
@@ -67,10 +67,16 @@ def generar_depreciacion(
     cuentas.append({"asiento": 1, "codigo": tipo["codigo_gasto"], "cuenta": nombre_gasto, "debe": monto, "haber": 0, "glosa": glosa_deprec})
     cuentas.append({"asiento": 1, "codigo": tipo["codigo_acum"], "cuenta": nombre_acum, "debe": 0, "haber": monto, "glosa": glosa_deprec})
 
-    destino_info = DESTINOS.get(destino.upper(), DESTINOS["ADMINISTRACION"])
     glosa_destino = "Distribución del gasto de depreciación por función"
+    porcentaje_admin = max(0, min(100, porcentaje_administracion))
+    monto_admin = round(monto * porcentaje_admin / 100, 2)
+    monto_ventas = round(monto - monto_admin, 2)
 
-    cuentas.append({"asiento": 2, "codigo": destino_info["codigo"], "cuenta": destino_info["nombre"], "debe": monto, "haber": 0, "glosa": glosa_destino})
+    if monto_admin > 0:
+        cuentas.append({"asiento": 2, "codigo": DESTINOS["ADMINISTRACION"]["codigo"], "cuenta": DESTINOS["ADMINISTRACION"]["nombre"], "debe": monto_admin, "haber": 0, "glosa": glosa_destino})
+    if monto_ventas > 0:
+        cuentas.append({"asiento": 2, "codigo": DESTINOS["VENTAS"]["codigo"], "cuenta": DESTINOS["VENTAS"]["nombre"], "debe": monto_ventas, "haber": 0, "glosa": glosa_destino})
+
     cuentas.append({"asiento": 2, "codigo": "79111", "cuenta": "Cargas imputables a cuentas de costos y gastos", "debe": 0, "haber": monto, "glosa": glosa_destino})
 
     return crear_asiento(cuentas)
