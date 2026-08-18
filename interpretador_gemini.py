@@ -288,3 +288,46 @@ Ejercicio:
     datos = json.loads(texto_limpio)
 
     return datos
+def extraer_politica_destino(texto_completo, api_key):
+    """
+    Escanea el documento COMPLETO (antes de dividirlo en ejercicios)
+    buscando si hay una política general de reparto de gastos entre
+    Administración y Ventas (ej. "3 administrativos y 2 vendedores",
+    "40% administración y 60% ventas", "todo el personal es de
+    administración", etc.).
+
+    Devuelve un texto corto describiendo esa política, para pasarlo
+    como contexto a cada extracción individual. Si no encuentra nada,
+    devuelve una cadena vacía.
+    """
+    cliente = genai.Client(api_key=api_key)
+
+    prompt = f"""
+Lee el siguiente documento contable completo y busca si en algún
+lugar (al inicio, al final, o en cualquier parte) se menciona una
+política general sobre cómo repartir los gastos (sueldos,
+depreciación, servicios, etc.) entre el área de ADMINISTRACIÓN y el
+área de VENTAS. Por ejemplo: cantidad de trabajadores por área,
+porcentajes de reparto, o qué cargos/gastos pertenecen a cada área.
+
+Si encuentras esa información, resúmela en 1-3 líneas cortas y
+claras. Si NO encuentras ninguna política general de reparto,
+responde EXACTAMENTE: NINGUNA
+
+No respondas nada más, solo el resumen o la palabra NINGUNA.
+
+Documento:
+\"\"\"{texto_completo}\"\"\"
+"""
+
+    interaction = cliente.interactions.create(
+        model="gemini-3.5-flash-lite",
+        input=prompt
+    )
+
+    texto_respuesta = interaction.output_text.strip()
+
+    if texto_respuesta.upper() == "NINGUNA":
+        return ""
+
+    return texto_respuesta
