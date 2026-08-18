@@ -12,7 +12,8 @@ from interpretador_gemini import (
     extraer_datos_planilla,
     extraer_datos_depreciacion,
     extraer_datos_provision,
-    extraer_datos_prestamo
+    extraer_datos_prestamo,
+    extraer_politica_destino
 )
 from clasificador_gemini import clasificar_ejercicio
 from generador_compras import generar_compra
@@ -166,7 +167,7 @@ def _validar_datos_no_cero(datos, campos_requeridos):
             )
 
 
-def _resolver_un_ejercicio(texto_ejercicio, api_key):
+def _resolver_un_ejercicio(texto_ejercicio, api_key, politica_destino=""):
     """
     Clasifica y resuelve UN solo ejercicio. Devuelve
     (tipo_detectado, datos_generales, asientos_finales).
@@ -197,18 +198,18 @@ def _resolver_un_ejercicio(texto_ejercicio, api_key):
         return tipo_detectado, datos, _agrupar_por_asiento(resultado["cuentas"])
 
     if tipo_detectado == "PLANILLA":
-        datos = extraer_datos_planilla(texto_ejercicio, api_key)
+        datos = extraer_datos_planilla(texto_ejercicio, api_key, politica_destino)
         _validar_datos_no_cero(datos, ["sueldo_bruto"])
         resultado = generar_planilla(
             sueldo_bruto=datos["sueldo_bruto"],
             incluir_pago_trabajador=datos.get("incluir_pago_trabajador", True),
             incluir_pago_sunat=datos.get("incluir_pago_sunat", True),
-            destino=datos.get("destino", "ADMINISTRACION")
+            porcentaje_administracion=datos.get("porcentaje_administracion", 100)
         )
         return tipo_detectado, datos, _agrupar_por_asiento(resultado["cuentas"])
 
     if tipo_detectado == "DEPRECIACION":
-        datos = extraer_datos_depreciacion(texto_ejercicio, api_key)
+        datos = extraer_datos_depreciacion(texto_ejercicio, api_key, politica_destino)
         _validar_datos_no_cero(datos, ["valor_activo"])
         resultado = generar_depreciacion(
             valor_activo=datos["valor_activo"],
@@ -216,16 +217,16 @@ def _resolver_un_ejercicio(texto_ejercicio, api_key):
             vida_util_anios=datos.get("vida_util_anios"),
             tasa_anual=datos.get("tasa_anual"),
             periodo=datos.get("periodo", "MENSUAL"),
-            destino=datos.get("destino", "ADMINISTRACION")
+            porcentaje_administracion=datos.get("porcentaje_administracion", 100)
         )
         return tipo_detectado, datos, _agrupar_por_asiento(resultado["cuentas"])
 
     if tipo_detectado == "PROVISION":
-        datos = extraer_datos_provision(texto_ejercicio, api_key)
+        datos = extraer_datos_provision(texto_ejercicio, api_key, politica_destino)
         _validar_datos_no_cero(datos, ["monto"])
         resultado = generar_provision(
             monto=datos["monto"],
-            destino=datos.get("destino", "ADMINISTRACION")
+            porcentaje_administracion=datos.get("porcentaje_administracion", 100)
         )
         return tipo_detectado, datos, _agrupar_por_asiento(resultado["cuentas"])
 
@@ -262,7 +263,7 @@ def _es_error_de_limite(error):
     return "429" in texto_error or "too_many_requests" in texto_error or "quota" in texto_error.lower()
 
 
-def _resolver_con_reintento(texto_ejercicio, api_key, max_intentos=5):
+def _resolver_con_reintento(texto_ejercicio, api_key, politica_destino="", max_intentos=5):
     """
     Igual que _resolver_un_ejercicio, pero si la API responde que
     se alcanzó el límite de solicitudes (error 429), espera el
@@ -270,7 +271,7 @@ def _resolver_con_reintento(texto_ejercicio, api_key, max_intentos=5):
     """
     for intento in range(1, max_intentos + 1):
         try:
-            return _resolver_un_ejercicio(texto_ejercicio, api_key)
+            return _resolver_un_ejercicio(texto_ejercicio, api_key, politica_destino)
         except Exception as error:
             if _es_error_de_limite(error) and intento < max_intentos:
                 segundos_espera = _extraer_segundos_espera(error)
@@ -307,6 +308,12 @@ if archivo_subido is not None:
             lista_ejercicios = _dividir_ejercicios(texto_completo)
             st.caption(f"Se detectaron {len(lista_ejercicios)} ejercicio(s) en el archivo.")
 
+            with st.spinner("Buscando una política general de reparto de gastos..."):
+                politica_destino = extraer_politica_destino(texto_completo, api_key)
+
+            if politica_destino:
+                st.info(f"📋 Política de reparto detectada: {politica_destino}")
+
             historial_asientos = []
             historial_resumen = []
 
@@ -316,7 +323,7 @@ if archivo_subido is not None:
                 try:
                     with st.spinner(f"Resolviendo ejercicio {indice_ejercicio}..."):
                         tipo_detectado, datos_generales, asientos_finales = _resolver_con_reintento(
-                            texto_ejercicio, api_key
+                            texto_ejercicio, api_key, politica_destino
                         )
 
                     st.info(f"Tipo detectado: **{tipo_detectado}**")
