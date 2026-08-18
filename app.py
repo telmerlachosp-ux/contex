@@ -2,6 +2,7 @@ import streamlit as st
 import fitz  # PyMuPDF
 import docx
 import re
+import time
 import base64
 from google import genai
 
@@ -142,6 +143,29 @@ def _agrupar_por_asiento(cuentas):
     return bloques
 
 
+def _validar_datos_no_cero(datos, campos_requeridos):
+    """
+    Revisa que cada campo numérico requerido exista en 'datos' y sea
+    mayor que cero. Si algo falta o viene en 0, lanza un error claro
+    en vez de dejar que se genere un asiento con montos vacíos.
+    """
+    for campo in campos_requeridos:
+        valor = datos.get(campo)
+        if valor is None:
+            raise ValueError(
+                f"La IA no pudo identificar el campo '{campo}' en el enunciado."
+            )
+        try:
+            valor_numerico = float(valor)
+        except (TypeError, ValueError):
+            raise ValueError(f"El campo '{campo}' no es un número válido: {valor}")
+
+        if valor_numerico <= 0:
+            raise ValueError(
+                f"El campo '{campo}' debe ser mayor que cero (la IA devolvió {valor_numerico})."
+            )
+
+
 def _resolver_un_ejercicio(texto_ejercicio, api_key):
     """
     Clasifica y resuelve UN solo ejercicio. Devuelve
@@ -151,6 +175,7 @@ def _resolver_un_ejercicio(texto_ejercicio, api_key):
 
     if tipo_detectado == "COMPRA":
         datos = extraer_datos_compra(texto_ejercicio, api_key)
+        _validar_datos_no_cero(datos, ["base_imponible", "igv", "total"])
         resultado = generar_compra(
             base_imponible=datos["base_imponible"],
             igv=datos["igv"],
@@ -161,16 +186,19 @@ def _resolver_un_ejercicio(texto_ejercicio, api_key):
 
     if tipo_detectado == "VENTA":
         datos = extraer_datos_venta(texto_ejercicio, api_key)
+        _validar_datos_no_cero(datos, ["base_imponible", "igv", "total"])
         resultado = generar_venta(
             base_imponible=datos["base_imponible"],
             igv=datos["igv"],
             total=datos["total"],
-            condicion_cobro=datos["condicion_cobro"]
+            condicion_cobro=datos["condicion_cobro"],
+            medio_pago=datos.get("medio_pago", "EFECTIVO")
         )
         return tipo_detectado, datos, _agrupar_por_asiento(resultado["cuentas"])
 
     if tipo_detectado == "PLANILLA":
         datos = extraer_datos_planilla(texto_ejercicio, api_key)
+        _validar_datos_no_cero(datos, ["sueldo_bruto"])
         resultado = generar_planilla(
             sueldo_bruto=datos["sueldo_bruto"],
             incluir_pago_trabajador=datos.get("incluir_pago_trabajador", True),
@@ -181,6 +209,7 @@ def _resolver_un_ejercicio(texto_ejercicio, api_key):
 
     if tipo_detectado == "DEPRECIACION":
         datos = extraer_datos_depreciacion(texto_ejercicio, api_key)
+        _validar_datos_no_cero(datos, ["valor_activo"])
         resultado = generar_depreciacion(
             valor_activo=datos["valor_activo"],
             tipo_activo=datos.get("tipo_activo", "MAQUINARIA"),
@@ -193,6 +222,7 @@ def _resolver_un_ejercicio(texto_ejercicio, api_key):
 
     if tipo_detectado == "PROVISION":
         datos = extraer_datos_provision(texto_ejercicio, api_key)
+        _validar_datos_no_cero(datos, ["monto"])
         resultado = generar_provision(
             monto=datos["monto"],
             destino=datos.get("destino", "ADMINISTRACION")
@@ -201,6 +231,7 @@ def _resolver_un_ejercicio(texto_ejercicio, api_key):
 
     if tipo_detectado == "PRESTAMO":
         datos = extraer_datos_prestamo(texto_ejercicio, api_key)
+        _validar_datos_no_cero(datos, ["monto_prestamo", "monto_interes"])
         resultado_prestamo = generar_prestamo_desde_enunciado(
             texto_enunciado=texto_ejercicio,
             monto_prestamo=datos["monto_prestamo"],
@@ -212,6 +243,45 @@ def _resolver_un_ejercicio(texto_ejercicio, api_key):
         return tipo_detectado, datos, resultado_prestamo["asientos"]
 
     raise ValueError(f"Tipo de ejercicio no reconocido: {tipo_detectado}")
+
+
+def _extraer_segundos_espera(mensaje_error, por_defecto=20):
+    """
+    Busca en el mensaje de error de la API el tiempo sugerido de
+    espera ("Please retry in 38.29s") y lo devuelve en segundos,
+    con un margen extra. Si no lo encuentra, usa un valor por defecto.
+    """
+    coincidencia = re.search(r"retry in ([\d\.]+)s", str(mensaje_error))
+    if coincidencia:
+        return float(coincidencia.group(1)) + 2
+    return por_defecto
+
+
+def _es_error_de_limite(error):
+    texto_error = str(error)
+    return "429" in texto_error or "too_many_requests" in texto_error or "quota" in texto_error.lower()
+
+
+def _resolver_con_reintento(texto_ejercicio, api_key, max_intentos=3):
+    """
+    Igual que _resolver_un_ejercicio, pero si la API responde que
+    se alcanzó el límite de solicitudes (error 429), espera el
+    tiempo indicado y reintenta automáticamente, hasta max_intentos.
+    """
+    for intento in range(1, max_intentos + 1):
+        try:
+            return _resolver_un_ejercicio(texto_ejercicio, api_key)
+        except Exception as error:
+            if _es_error_de_limite(error) and intento < max_intentos:
+                segundos_espera = _extraer_segundos_espera(error)
+                st.warning(
+                    f"⏳ Se alcanzó el límite de solicitudes a la IA. "
+                    f"Esperando {int(segundos_espera)} segundos antes de "
+                    f"reintentar (intento {intento} de {max_intentos})..."
+                )
+                time.sleep(segundos_espera)
+                continue
+            raise
 
 
 # ==========================================
@@ -245,7 +315,7 @@ if archivo_subido is not None:
 
                 try:
                     with st.spinner(f"Resolviendo ejercicio {indice_ejercicio}..."):
-                        tipo_detectado, datos_generales, asientos_finales = _resolver_un_ejercicio(
+                        tipo_detectado, datos_generales, asientos_finales = _resolver_con_reintento(
                             texto_ejercicio, api_key
                         )
 
@@ -282,6 +352,8 @@ if archivo_subido is not None:
 
                 except Exception as error:
                     st.error(f"Ocurrió un error al resolver el ejercicio {indice_ejercicio}: {error}")
+
+                time.sleep(1.5)
 
             if historial_asientos:
                 resumen_acumulado = {}
