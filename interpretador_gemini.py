@@ -416,3 +416,208 @@ Documento:
         return ""
 
     return texto_respuesta
+def extraer_datos_constitucion(texto_ejercicio, api_key):
+    """
+    Recibe el texto de un ejercicio de constitución de empresa
+    (suscripción/aporte de capital, gastos de constitución) y le
+    pide a Gemini que extraiga los datos en formato JSON.
+    """
+    cliente = genai.Client(api_key=api_key)
+
+    prompt = f"""
+Eres un asistente contable. Lee el siguiente ejercicio y extrae ÚNICAMENTE
+los datos necesarios para registrar la CONSTITUCIÓN de una empresa
+(suscripción y aporte de capital, y gastos de constitución si los hay).
+
+Responde EXCLUSIVAMENTE con un objeto JSON válido, sin explicaciones,
+sin marcas de código (nada de ```).
+
+El formato exacto debe ser:
+{{
+  "monto_capital": numero,
+  "tipo_aporte": "EFECTIVO" o "BIENES" o "MERCADERIAS",
+  "detalle_bien": "descripción breve si el aporte es en bienes, o vacío",
+  "razon_social": "nombre de la empresa si se menciona, o vacío",
+  "gastos": [
+    {{
+      "concepto": "NOTARIALES" o "REGISTRALES" o "LEGALES" o "OTROS",
+      "base_imponible": numero,
+      "incluir_igv": true o false,
+      "medio_pago": "EFECTIVO" o "TRANSFERENCIA"
+    }}
+  ]
+}}
+
+Reglas:
+- "monto_capital" es el monto TOTAL que aportan los socios (efectivo +
+  bienes, si los hay, sumados).
+- "gastos" es una lista vacía [] si el ejercicio no menciona gastos de
+  constitución (notariales, registrales, legales).
+- Si no se menciona IGV en un gasto, usa incluir_igv=true por defecto.
+
+Ejercicio:
+\"\"\"{texto_ejercicio}\"\"\"
+"""
+
+    interaction = cliente.interactions.create(
+        model="gemini-3.5-flash-lite",
+        input=prompt
+    )
+
+    texto_respuesta = interaction.output_text
+    texto_limpio = re.sub(r"```json|```", "", texto_respuesta).strip()
+
+    return json.loads(texto_limpio)
+
+
+def extraer_datos_deposito_caja_chica(texto_ejercicio, api_key):
+    """
+    Recibe el texto de un ejercicio de depósito a cuenta corriente
+    y/o apertura de caja chica, y le pide a Gemini los datos en JSON.
+    """
+    cliente = genai.Client(api_key=api_key)
+
+    prompt = f"""
+Eres un asistente contable. Lee el siguiente ejercicio y extrae ÚNICAMENTE
+los montos necesarios para registrar un DEPÓSITO A CUENTA CORRIENTE
+y/o la APERTURA DE UN FONDO FIJO (caja chica).
+
+Responde EXCLUSIVAMENTE con un objeto JSON válido, sin explicaciones,
+sin marcas de código.
+
+El formato exacto debe ser:
+{{
+  "monto_cuenta_corriente": numero,
+  "monto_caja_chica": numero
+}}
+
+Reglas:
+- Si el ejercicio no menciona depósito a cuenta corriente, usa 0 en
+  "monto_cuenta_corriente".
+- Si el ejercicio no menciona caja chica/fondo fijo, usa 0 en
+  "monto_caja_chica".
+- Al menos uno de los dos debe ser mayor que 0.
+
+Ejercicio:
+\"\"\"{texto_ejercicio}\"\"\"
+"""
+
+    interaction = cliente.interactions.create(
+        model="gemini-3.5-flash-lite",
+        input=prompt
+    )
+
+    texto_respuesta = interaction.output_text
+    texto_limpio = re.sub(r"```json|```", "", texto_respuesta).strip()
+
+    return json.loads(texto_limpio)
+
+
+def extraer_datos_reposicion_caja_chica(texto_ejercicio, api_key):
+    """
+    Recibe el texto de un ejercicio de reposición de caja chica y
+    le pide a Gemini el monto en JSON.
+    """
+    cliente = genai.Client(api_key=api_key)
+
+    prompt = f"""
+Eres un asistente contable. Lee el siguiente ejercicio y extrae el
+monto de la REPOSICIÓN DEL FONDO FIJO (caja chica).
+
+Responde EXCLUSIVAMENTE con un objeto JSON válido:
+{{
+  "monto": numero
+}}
+
+Ejercicio:
+\"\"\"{texto_ejercicio}\"\"\"
+"""
+
+    interaction = cliente.interactions.create(
+        model="gemini-3.5-flash-lite",
+        input=prompt
+    )
+
+    texto_respuesta = interaction.output_text
+    texto_limpio = re.sub(r"```json|```", "", texto_respuesta).strip()
+
+    return json.loads(texto_limpio)
+
+
+def extraer_datos_entrega_cheque(texto_ejercicio, api_key):
+    """
+    Recibe el texto de un ejercicio de pago mediante cheque y le
+    pide a Gemini los datos en JSON.
+    """
+    cliente = genai.Client(api_key=api_key)
+
+    prompt = f"""
+Eres un asistente contable. Lee el siguiente ejercicio y extrae los
+datos del PAGO DE UNA OBLIGACIÓN MEDIANTE CHEQUE.
+
+Responde EXCLUSIVAMENTE con un objeto JSON válido:
+{{
+  "monto": numero,
+  "codigo_cuenta_cancelada": "42121",
+  "nombre_cuenta_cancelada": "Facturas por pagar"
+}}
+
+Reglas:
+- Si el ejercicio no aclara qué obligación se cancela, usa el valor
+  por defecto ya indicado (42121 / Facturas por pagar).
+- Si menciona honorarios por pagar, usa "42421" / "Honorarios por pagar".
+
+Ejercicio:
+\"\"\"{texto_ejercicio}\"\"\"
+"""
+
+    interaction = cliente.interactions.create(
+        model="gemini-3.5-flash-lite",
+        input=prompt
+    )
+
+    texto_respuesta = interaction.output_text
+    texto_limpio = re.sub(r"```json|```", "", texto_respuesta).strip()
+
+    return json.loads(texto_limpio)
+
+
+def extraer_datos_anticipo_cliente(texto_ejercicio, api_key):
+    """
+    Recibe el texto de un ejercicio de anticipo recibido de un
+    cliente y le pide a Gemini los datos en JSON.
+    """
+    cliente = genai.Client(api_key=api_key)
+
+    prompt = f"""
+Eres un asistente contable. Lee el siguiente ejercicio y extrae los
+datos de un PAGO ANTICIPADO (ANTICIPO) recibido de un cliente, antes
+de realizar la venta.
+
+Responde EXCLUSIVAMENTE con un objeto JSON válido:
+{{
+  "monto_recibido": numero,
+  "incluye_igv": true o false,
+  "medio_pago": "EFECTIVO" o "TRANSFERENCIA"
+}}
+
+Reglas:
+- "monto_recibido" es el monto TOTAL cobrado (con IGV incluido, si
+  aplica).
+- Por defecto "incluye_igv" es true (los anticipos generan IGV según
+  SUNAT), salvo que el ejercicio diga expresamente lo contrario.
+- Si no se menciona el medio de pago, usa "EFECTIVO".
+
+Ejercicio:
+\"\"\"{texto_ejercicio}\"\"\"
+"""
+
+    interaction = cliente.interactions.create(
+        model="gemini-3.5-flash-lite",
+        input=prompt
+    )
+
+    texto_respuesta = interaction.output_text
+    texto_limpio = re.sub(r"```json|```", "", texto_respuesta).strip()
+
+    return json.loads(texto_limpio)
