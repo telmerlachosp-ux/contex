@@ -13,7 +13,12 @@ from interpretador_gemini import (
     extraer_datos_depreciacion,
     extraer_datos_provision,
     extraer_datos_prestamo,
-    extraer_politica_destino
+    extraer_politica_destino,
+    extraer_datos_constitucion,
+    extraer_datos_deposito_caja_chica,
+    extraer_datos_reposicion_caja_chica,
+    extraer_datos_entrega_cheque,
+    extraer_datos_anticipo_cliente
 )
 from clasificador_gemini import clasificar_ejercicio
 from generador_compras import generar_compra
@@ -22,6 +27,13 @@ from generador_planilla import generar_planilla
 from generador_depreciacion import generar_depreciacion
 from generador_provision import generar_provision
 from generador_prestamos import generar_prestamo_desde_enunciado
+from generador_constitucion import generar_constitucion_completa
+from generador_tesoreria import (
+    generar_deposito_y_caja_chica,
+    generar_reposicion_caja_chica,
+    generar_entrega_cheque,
+    generar_anticipo_cliente
+)
 from generador_excel import generar_excel_multiples_asientos
 
 
@@ -242,6 +254,52 @@ def _resolver_un_ejercicio(texto_ejercicio, api_key, politica_destino=""):
             modalidad_interes=datos.get("modalidad_interes")
         )
         return tipo_detectado, datos, resultado_prestamo["asientos"]
+
+    if tipo_detectado == "CONSTITUCION":
+        datos = extraer_datos_constitucion(texto_ejercicio, api_key)
+        _validar_datos_no_cero(datos, ["monto_capital"])
+        asientos = generar_constitucion_completa(
+            monto_capital=datos["monto_capital"],
+            tipo_aporte=datos.get("tipo_aporte", "EFECTIVO"),
+            detalle_bien=datos.get("detalle_bien", ""),
+            gastos=datos.get("gastos", []),
+            razon_social=datos.get("razon_social", "")
+        )
+        return tipo_detectado, datos, asientos
+
+    if tipo_detectado == "DEPOSITO_CAJA_CHICA":
+        datos = extraer_datos_deposito_caja_chica(texto_ejercicio, api_key)
+        resultado = generar_deposito_y_caja_chica(
+            monto_cuenta_corriente=datos.get("monto_cuenta_corriente", 0),
+            monto_caja_chica=datos.get("monto_caja_chica", 0)
+        )
+        return tipo_detectado, datos, _agrupar_por_asiento(resultado["cuentas"])
+
+    if tipo_detectado == "REPOSICION_CAJA_CHICA":
+        datos = extraer_datos_reposicion_caja_chica(texto_ejercicio, api_key)
+        _validar_datos_no_cero(datos, ["monto"])
+        resultado = generar_reposicion_caja_chica(monto=datos["monto"])
+        return tipo_detectado, datos, _agrupar_por_asiento(resultado["cuentas"])
+
+    if tipo_detectado == "ENTREGA_CHEQUE":
+        datos = extraer_datos_entrega_cheque(texto_ejercicio, api_key)
+        _validar_datos_no_cero(datos, ["monto"])
+        resultado = generar_entrega_cheque(
+            monto=datos["monto"],
+            codigo_cuenta_cancelada=datos.get("codigo_cuenta_cancelada", "42121"),
+            nombre_cuenta_cancelada=datos.get("nombre_cuenta_cancelada", "Facturas por pagar")
+        )
+        return tipo_detectado, datos, _agrupar_por_asiento(resultado["cuentas"])
+
+    if tipo_detectado == "ANTICIPO_CLIENTE":
+        datos = extraer_datos_anticipo_cliente(texto_ejercicio, api_key)
+        _validar_datos_no_cero(datos, ["monto_recibido"])
+        resultado = generar_anticipo_cliente(
+            monto_recibido=datos["monto_recibido"],
+            incluye_igv=datos.get("incluye_igv", True),
+            medio_pago=datos.get("medio_pago", "EFECTIVO")
+        )
+        return tipo_detectado, datos, _agrupar_por_asiento(resultado["cuentas"])
 
     raise ValueError(f"Tipo de ejercicio no reconocido: {tipo_detectado}")
 
