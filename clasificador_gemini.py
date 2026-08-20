@@ -7,7 +7,12 @@ TIPOS_VALIDOS = {
     "PLANILLA",
     "DEPRECIACION",
     "PROVISION",
-    "PRESTAMO"
+    "PRESTAMO",
+    "CONSTITUCION",
+    "DEPOSITO_CAJA_CHICA",
+    "REPOSICION_CAJA_CHICA",
+    "ENTREGA_CHEQUE",
+    "ANTICIPO_CLIENTE",
 }
 
 _PALABRAS_CLAVE = {
@@ -17,6 +22,11 @@ _PALABRAS_CLAVE = {
     "DEPRECIACION": ["deprecia"],
     "PROVISION": ["cobranza dudosa", "incobrable", "estimación de cobranza"],
     "PRESTAMO": ["préstamo", "prestamo", "financiamiento", "entidad financiera"],
+    "CONSTITUCION": ["constitución", "constitucion", "suscripción de capital", "aporte de capital", "capital social", "asiento inicial de operaciones"],
+    "DEPOSITO_CAJA_CHICA": ["apertura de cuenta corriente", "creación de fondo fijo", "apertura de caja chica", "depósito a cuenta corriente"],
+    "REPOSICION_CAJA_CHICA": ["reposición del fondo fijo", "reposición de caja chica", "reposicion del fondo fijo"],
+    "ENTREGA_CHEQUE": ["entrega de cheque", "gira un cheque", "mediante cheque", "con cheque"],
+    "ANTICIPO_CLIENTE": ["pago anticipado", "anticipo de cliente", "adelanto de cliente", "anticipo recibido"],
 }
 
 
@@ -52,8 +62,7 @@ def clasificar_ejercicio(texto_ejercicio, api_key):
     Primero intenta con palabras clave (rápido y confiable para
     ejercicios básicos); si es ambiguo, le pregunta a Gemini.
 
-    Devuelve un string: "COMPRA", "VENTA", "PLANILLA",
-    "DEPRECIACION", "PROVISION" o "PRESTAMO".
+    Devuelve un string con el tipo detectado (ver TIPOS_VALIDOS).
     """
     tipo_por_palabras = _clasificar_por_palabras_clave(texto_ejercicio)
     if tipo_por_palabras:
@@ -68,16 +77,23 @@ a cuál de estas categorías pertenece:
 - COMPRA: adquisición de mercadería o bienes para la empresa.
 - VENTA: venta de mercadería o bienes a un cliente.
 - PLANILLA: pago o provisión de sueldos a trabajadores.
-- DEPRECIACION: depreciación de un activo fijo (maquinaria,
-  edificio, vehículo, muebles, equipo).
-- PROVISION: estimación o provisión de cobranza dudosa sobre
-  cuentas por cobrar.
-- PRESTAMO: obtención de un préstamo o financiamiento de una
-  entidad financiera (banco).
+- DEPRECIACION: depreciación de un activo fijo.
+- PROVISION: estimación o provisión de cobranza dudosa.
+- PRESTAMO: obtención de un préstamo de una entidad financiera.
+- CONSTITUCION: constitución de la empresa, suscripción o aporte
+  de capital social por parte de los socios, o gastos notariales
+  y registrales de constitución.
+- DEPOSITO_CAJA_CHICA: depósito de efectivo a una cuenta corriente
+  bancaria y/o apertura de un fondo fijo (caja chica).
+- REPOSICION_CAJA_CHICA: reposición o recarga del fondo fijo
+  (caja chica) desde el banco.
+- ENTREGA_CHEQUE: pago de una obligación mediante la entrega de
+  un cheque girado contra el banco.
+- ANTICIPO_CLIENTE: recepción de un pago anticipado (adelanto) de
+  un cliente, antes de realizar la venta.
 
-Responde EXCLUSIVAMENTE con una sola palabra, en mayúsculas, sin
-explicaciones ni texto adicional: COMPRA, VENTA, PLANILLA,
-DEPRECIACION, PROVISION o PRESTAMO.
+Responde EXCLUSIVAMENTE con una sola palabra (el nombre exacto de
+la categoría, en mayúsculas), sin explicaciones ni texto adicional.
 
 Ejercicio:
 \"\"\"{texto_ejercicio}\"\"\"
@@ -89,8 +105,8 @@ Ejercicio:
     )
 
     texto_respuesta = interaction.output_text
-    tipo = re.sub(r"[^A-ZÁÉÍÓÚ]", "", texto_respuesta.strip().upper())
-    tipo = tipo.replace("Ó", "O")
+    tipo = re.sub(r"[^A-ZÁÉÍÓÚ_]", "", texto_respuesta.strip().upper())
+    tipo = tipo.replace("Ó", "O").replace("Á", "A").replace("É", "E").replace("Í", "I").replace("Ú", "U")
 
     if tipo not in TIPOS_VALIDOS:
         raise ValueError(
